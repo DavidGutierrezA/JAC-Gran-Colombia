@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JAC Barrio Gran Colombia — Cajicá</title>
+<meta name="description" content="Junta de Acción Comunal del Barrio Gran Colombia, Cajicá. Explora el barrio y encuentra el Salón Comunal para información y certificados de residencia.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a2a1a; touch-action:none;
+    font-family:'Press Start 2P', monospace; }
+  #game { position:absolute; inset:0; width:100vw; height:100vh; image-rendering:pixelated; image-rendering:crisp-edges; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between;
+    pointer-events:none; z-index:5; gap:8px; flex-wrap:wrap; }
+  .hudbox { background:rgba(20,26,20,.82); border:2px solid #f5d442; color:#fff; padding:7px 10px;
+    font-size:9px; line-height:1.6; border-radius:4px; box-shadow:2px 2px 0 rgba(0,0,0,.5); }
+  #objective { color:#f5d442; }
+
+  /* ---------- Prompt de interacción ---------- */
+  #prompt { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
+    background:#14203a; border:2px solid #fff; color:#fff; font-size:10px; padding:10px 14px;
+    border-radius:4px; display:none; z-index:6; cursor:pointer; box-shadow:3px 3px 0 rgba(0,0,0,.5);
+    animation:bump 1s infinite; white-space:nowrap; }
+  @keyframes bump { 50% { transform:translateX(-50%) translateY(-3px);} }
+  #prompt b { color:#f5d442; }
+
+  /* ---------- Modal ---------- */
+  #overlay { position:absolute; inset:0; background:rgba(0,0,0,.55); display:none; z-index:10; }
+  #modal { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(92vw,460px); max-height:86vh; overflow-y:auto; background:#f8f0dc; color:#2b2318;
+    border:4px solid #2b2318; border-radius:6px; box-shadow:6px 6px 0 rgba(0,0,0,.55); padding:18px; }
+  #modal h2 { font-size:12px; color:#b3261e; margin-bottom:12px; line-height:1.6; }
+  #modal h3 { font-size:9px; color:#155e2b; margin:14px 0 6px; }
+  #modal p, #modal li { font-size:8px; line-height:1.9; }
+  #modal ul { list-style:none; }
+  #modal li::before { content:"► "; color:#b3261e; }
+  #modal .tel { display:block; background:#155e2b; color:#fff; text-decoration:none; text-align:center;
+    font-size:10px; padding:12px; margin:10px 0 6px; border-radius:4px; border:2px solid #0c3a1a;
+    box-shadow:0 3px 0 #0c3a1a; }
+  #modal .tel.wa { background:#1f7a33; }
+  #modal .tel:active { transform:translateY(2px); box-shadow:none; }
+  #closeBtn { margin-top:14px; width:100%; background:#b3261e; color:#fff; border:2px solid #6e120d;
+    font-family:inherit; font-size:9px; padding:10px; border-radius:4px; cursor:pointer; box-shadow:0 3px 0 #6e120d; }
+  #closeBtn:active { transform:translateY(2px); box-shadow:none; }
+  .flagline { height:6px; margin-bottom:12px; background:linear-gradient(to bottom,#fcd116 0 50%,#003893 50% 75%,#ce1126 75% 100%); }
+
+  /* ---------- Intro ---------- */
+  #intro { position:absolute; inset:0; z-index:20; background:rgba(10,16,10,.88);
+    display:flex; align-items:center; justify-content:center; }
+  #introCard { width:min(92vw,470px); background:#f8f0dc; color:#2b2318; border:4px solid #2b2318;
+    border-radius:6px; padding:22px; text-align:center; box-shadow:6px 6px 0 rgba(0,0,0,.6); }
+  #introCard h1 { font-size:14px; color:#b3261e; line-height:1.7; margin-bottom:4px; }
+  #introCard h2 { font-size:9px; color:#155e2b; margin-bottom:14px; }
+  #introCard p { font-size:8px; line-height:1.9; margin-bottom:8px; }
+  #playBtn { font-family:inherit; font-size:11px; background:#155e2b; color:#fff; border:2px solid #0c3a1a;
+    padding:14px 26px; border-radius:4px; cursor:pointer; margin-top:10px; box-shadow:0 4px 0 #0c3a1a; }
+  #playBtn:active { transform:translateY(3px); box-shadow:none; }
+
+  /* ---------- Controles táctiles ---------- */
+  #joy { position:absolute; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.12);
+    border:2px solid rgba(255,255,255,.35); display:none; z-index:7; pointer-events:none; }
+  #stick { position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.45);
+    left:32px; top:32px; }
+  #btnA { position:absolute; right:22px; bottom:26px; width:66px; height:66px; border-radius:50%;
+    background:rgba(245,212,66,.85); border:3px solid #a8861c; color:#4a3a05; font-family:inherit;
+    font-size:16px; display:none; z-index:7; box-shadow:0 4px 0 #a8861c; }
+  #btnA:active { transform:translateY(3px); box-shadow:none; }
+  body.touch #btnA { display:block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hudbox">🏘 Barrio Gran Colombia · Cajicá</div>
+  <div class="hudbox" id="objective">Objetivo: encuentra el Salón Comunal (JAC) ➜</div>
+</div>
+
+<div id="prompt"></div>
+
+<div id="joy"><div id="stick"></div></div>
+<button id="btnA">A</button>
+
+<div id="overlay">
+  <div id="modal">
+    <div id="modalContent"></div>
+    <button id="closeBtn">CERRAR ✕</button>
+  </div>
+</div>
+
+<div id="intro">
+  <div id="introCard">
+    <h1>BARRIO<br>GRAN COLOMBIA</h1>
+    <h2>Junta de Acción Comunal · Cajicá</h2>
+    <div class="flagline"></div>
+    <p>Recorre el barrio desde el <b>Centro Cultural</b> hasta la <b>Variante</b> y encuentra el <b>Salón Comunal</b> para pedir tu certificado de residencia.</p>
+    <p>🖥 PC: <b>WASD / flechas</b> para caminar, <b>E</b> para interactuar.<br>📱 Celular: <b>joystick</b> (toca la pantalla) y botón <b>A</b>.</p>
+    <button id="playBtn">▶ ENTRAR AL BARRIO</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   ⚙️  CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN  ⚙️
+   ===================================================================== */
+const CONFIG = {
+  telefono:  "310 000 0000",        // ← CAMBIAR: número para certificados
+  whatsapp:  "573100000000",        // ← CAMBIAR: solo dígitos, con 57 adelante
+  horario:   "Sábados de 9:00 a.m. a 12:00 m.",   // ← CAMBIAR si es otro
+  requisitos: [
+    "Nombre completo y cédula",
+    "Dirección exacta de la vivienda",
+    "Tiempo de residencia en el barrio",
+    "Número de contacto",
+  ],
+  mensaje: "La JAC del Barrio Gran Colombia trabaja por el bienestar de todos los vecinos. ¡Participa en las asambleas y actividades comunitarias!",
+};
+/* ===================================================================== */
+
+// ---------- Constantes del mundo ----------
+const T = 16, COLS = 60, ROWS = 34;
+const MAPW = COLS*T, MAPH = ROWS*T;
+const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+
+// tiles: 0 pasto, 1 vía, 2 andén, 3 riel, 4 plaza/camino, 5 agua, 6 cancha
+const tile  = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+const solid = Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const hash = (c,r)=>((c*73856093)^(r*19349663))>>>0;
+
+// ---------- Construcción del mapa ----------
+// Calle principal (horizontal): del Centro Cultural a la Variante
+for(let c=0;c<COLS;c++){ tile[15][c]=2; tile[19][c]=2; for(let r=16;r<=18;r++) tile[r][c]=1; }
+// Carrera norte (junto a la JAC)
+for(let r=0;r<=14;r++){ tile[r][33]=2; tile[r][34]=1; tile[r][35]=1; }
+// Carreras sur
+for(let r=20;r<ROWS;r++){ tile[r][24]=1; tile[r][25]=1; tile[r][44]=1; tile[r][45]=1; }
+// Riel del Tren de la Sabana
+for(let r=0;r<ROWS;r++) tile[r][14]=3;
+// Variante de Cajicá (este) — decorativa, no se puede cruzar
+for(let r=0;r<ROWS;r++){ tile[r][53]=2; for(let c=54;c<=57;c++) tile[r][c]=1; }
+for(let r=0;r<ROWS;r++) for(let c=54;c<COLS;c++) solid[r][c]=true;
+// Plaza frente a la JAC
+for(let r=12;r<=14;r++) for(let c=36;c<=42;c++) tile[r][c]=4;
+// Parque: camino y laguito
+for(let c=18;c<=26;c++) tile[5][c]=4;
+for(let r=2;r<=9;r++) tile[r][22]=4;
+for(let r=6;r<=8;r++) for(let c=18;c<=20;c++){ tile[r][c]=5; solid[r][c]=true; }
+// Cancha (sur)
+for(let r=22;r<=28;r++) for(let c=27;c<=33;c++) tile[r][c]=6;
+// Andén de la estación del tren
+for(let r=21;r<=26;r++) tile[r][13]=2;
+
+// ---------- Edificios ----------
+// {c,r,w,h en tiles}
+const buildings = [
+  {c:3,  r:8,  w:10,h:7, type:'cultural', name:'Centro Cultural'},
+  {c:36, r:6,  w:7, h:6, type:'jac',      name:'Salón Comunal · JAC'},
+  {c:11, r:21, w:2, h:2, type:'estacion', name:'Estación del Tren'},
+  {c:19, r:21, w:4, h:4, type:'tienda',   name:'Tienda'},
+  // Casas norte
+  {c:46,r:3,w:3,h:3,type:'house',v:0},{c:50,r:3,w:3,h:3,type:'house',v:1},
+  {c:46,r:9,w:3,h:3,type:'house',v:2},{c:50,r:9,w:3,h:3,type:'house',v:3},
+  {c:28,r:2,w:3,h:3,type:'house',v:1},
+  // Casas sur
+  {c:38,r:21,w:3,h:3,type:'house',v:2},{c:38,r:27,w:3,h:3,type:'house',v:0},
+  {c:47,r:21,w:3,h:3,type:'house',v:1},{c:50,r:21,w:3,h:3,type:'house',v:3},
+  {c:47,r:27,w:3,h:3,type:'house',v:0},{c:50,r:27,w:3,h:3,type:'house',v:2},
+  {c:17,r:27,w:3,h:3,type:'house',v:3},{c:21,r:27,w:3,h:3,type:'house',v:1},
+  {c:5, r:22,w:3,h:3,type:'house',v:0},{c:5, r:27,w:3,h:3,type:'house',v:2},
+];
+for(const b of buildings) for(let r=b.r;r<b.r+b.h;r++) for(let c=b.c;c<b.c+b.w;c++) solid[r][c]=true;
+
+// ---------- Árboles ----------
+const trees=[];
+function addTree(c,r){ if(!solid[r][c]&&tile[r][c]===0){ trees.push({c,r}); solid[r][c]=true; } }
+[[16,2],[16,7],[16,12],[17,22],[16,25],[16,31],
+ [19,2],[21,3],[24,2],[26,3],[25,8],[19,9],[26,7],[23,8],
+ [30,6],[31,3],[27,9],[29,9],[44,2],[44,7],[44,12],[49,6],[52,6],
+ [1,2],[1,6],[1,20],[1,25],[1,30],[9,21],[3,31],[10,31],[14,29],
+ [36,3],[40,3],[43,4],[27,31],[33,31],[36,22],[36,28],[42,24],[52,25],[52,31],
+ [46,14],[50,13],[20,13],[28,13],[46,31]].forEach(p=>addTree(p[0],p[1]));
+
+// ---------- Puntos de interés ----------
+const jacDoor = {x:(36+3.5)*T, y:12*T};
+const pois = [
+  {x:jacDoor.x, y:jacDoor.y+8, r:30, key:'jac',
+   label:'Salón Comunal · JAC'},
+  {x:8*T, y:15.5*T, r:34, key:'cultural', label:'Centro Cultural'},
+  {x:21*T, y:25.5*T, r:26, key:'tienda', label:'La tienda del barrio'},
+  {x:30.5*T, y:25*T, r:40, key:'cancha', label:'La cancha'},
+  {x:22.5*T, y:5.5*T, r:30, key:'parque', label:'El parque'},
+  {x:53.5*T, y:17*T, r:30, key:'variante', label:'Variante de Cajicá'},
+  {x:12.5*T, y:23*T, r:26, key:'estacion', label:'Estación del Tren'},
+];
+const poiContent = {
+  jac: ()=>`
+    <h2>🏛 Junta de Acción Comunal<br>Barrio Gran Colombia</h2>
+    <div class="flagline"></div>
+    <p>${CONFIG.mensaje}</p>
+    <h3>📜 Certificados de residencia</h3>
+    <p>Solicítalos llamando o escribiendo al:</p>
+    <a class="tel" href="tel:${CONFIG.telefono.replace(/\s/g,'')}">📞 ${CONFIG.telefono}</a>
+    <a class="tel wa" href="https://wa.me/${CONFIG.whatsapp}?text=Hola,%20quiero%20solicitar%20un%20certificado%20de%20residencia%20(Barrio%20Gran%20Colombia)" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+    <h3>🕐 Horario de atención</h3>
+    <p>${CONFIG.horario}</p>
+    <h3>📋 Requisitos</h3>
+    <ul>${CONFIG.requisitos.map(r=>`<li>${r}</li>`).join('')}</ul>`,
+  cultural: ()=>`
+    <h2>🎭 Centro Cultural y de Convenciones</h2>
+    <p>Uno de los centros culturales más grandes de Colombia, inaugurado en 2016. Aquí empieza nuestro recorrido: conciertos, ferias y eventos del municipio.</p>
+    <p>El Salón Comunal de la JAC queda hacia el <b>oriente</b>, siguiendo la calle principal. ➜</p>`,
+  tienda: ()=>`
+    <h2>🛒 La tienda del barrio</h2>
+    <p>Punto de encuentro de los vecinos. Aquí también se entera uno de todo lo que pasa en Gran Colombia. 😄</p>`,
+  cancha: ()=>`
+    <h2>⚽ La cancha</h2>
+    <p>Espacio deportivo del barrio. La JAC organiza campeonatos y actividades recreativas: ¡pregunta en el Salón Comunal!</p>`,
+  parque: ()=>`
+    <h2>🌳 El parque</h2>
+    <p>Zona verde del barrio. Cuidémosla entre todos: no arrojar basura y recoger los desechos de las mascotas.</p>`,
+  variante: ()=>`
+    <h2>🚗 Variante de Cajicá</h2>
+    <p>Límite oriental del barrio. ¡Mucho cuidado al cruzar! Aquí termina el territorio de la JAC Gran Colombia.</p>`,
+  estacion: ()=>`
+    <h2>🚂 Tren de la Sabana</h2>
+    <p>Por estos rieles pasa el histórico Tren de la Sabana. Si lo escuchas pitar, ¡salúdalo!</p>`,
+};
+
+// ---------- Carros de la variante ----------
+const cars=[
+  {x:54.6*T, y:40,  v: 46, col:'#c62828'},
+  {x:54.6*T, y:330, v: 58, col:'#1565c0'},
+  {x:56.4*T, y:480, v:-52, col:'#f9a825'},
+  {x:56.4*T, y:150, v:-40, col:'#6a4fa3'},
+];
+
+// ---------- Jugador ----------
+const player = { x:16.5*T, y:15.5*T, dir:'down', moving:false, anim:0 };
+const SPEED = 92; // px/seg
+let visitedJac = false;
+
+// ---------- Entrada ----------
+const keys={};
+addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+  if(e.repeat) return;
+  if(modalOpen && (e.key==='Escape'||e.key.toLowerCase()==='e'||e.key==='Enter')) closeModal();
+  else if(!modalOpen && (e.key.toLowerCase()==='e'||e.key==='Enter'||e.key===' ')) tryInteract();
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+// Joystick táctil
+const joyEl=document.getElementById('joy'), stickEl=document.getElementById('stick');
+let joy={active:false,id:null,cx:0,cy:0,dx:0,dy:0};
+function joyStart(t){
+  joy.active=true; joy.id=t.identifier??'m'; joy.cx=t.clientX; joy.cy=t.clientY; joy.dx=joy.dy=0;
+  joyEl.style.display='block'; joyEl.style.left=(t.clientX-55)+'px'; joyEl.style.top=(t.clientY-55)+'px';
+  stickEl.style.left='32px'; stickEl.style.top='32px';
+}
+function joyMove(t){
+  let dx=t.clientX-joy.cx, dy=t.clientY-joy.cy;
+  const d=Math.hypot(dx,dy), m=40; if(d>m){dx*=m/d;dy*=m/d;}
+  joy.dx=dx/m; joy.dy=dy/m;
+  stickEl.style.left=(32+dx)+'px'; stickEl.style.top=(32+dy)+'px';
+}
+function joyEnd(){ joy.active=false; joy.dx=joy.dy=0; joyEl.style.display='none'; }
+addEventListener('touchstart',e=>{
+  document.body.classList.add('touch');
+  for(const t of e.changedTouches){
+    if(t.clientX>innerWidth*0.62) continue;           // lado derecho = botón A
+    if(modalOpen) continue;
+    if(!joy.active) joyStart(t);
+  }
+},{passive:true});
+addEventListener('touchmove',e=>{
+  for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyMove(t);
+},{passive:true});
+addEventListener('touchend',e=>{
+  for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyEnd();
+},{passive:true});
+document.getElementById('btnA').addEventListener('touchstart',e=>{e.stopPropagation(); e.preventDefault(); modalOpen?closeModal():tryInteract();},{passive:false});
+document.getElementById('btnA').addEventListener('click',e=>{ modalOpen?closeModal():tryInteract(); });
+
+// ---------- Modal ----------
+const overlay=document.getElementById('overlay'), modalContent=document.getElementById('modalContent');
+let modalOpen=false;
+function openModal(key){
+  modalContent.innerHTML=poiContent[key]();
+  overlay.style.display='block'; modalOpen=true;
+  if(key==='jac'&&!visitedJac){ visitedJac=true;
+    document.getElementById('objective').textContent='✔ ¡Encontraste la JAC! Sigue explorando el barrio'; }
+}
+function closeModal(){ overlay.style.display='none'; modalOpen=false; }
+document.getElementById('closeBtn').onclick=closeModal;
+overlay.addEventListener('click',e=>{ if(e.target===overlay) closeModal(); });
+
+const promptEl=document.getElementById('prompt');
+let nearPoi=null;
+function tryInteract(){ if(nearPoi) openModal(nearPoi.key); }
+promptEl.onclick=tryInteract;
+
+// ---------- Intro ----------
+let started=false;
+document.getElementById('playBtn').onclick=()=>{ document.getElementById('intro').style.display='none'; started=true; };
+
+// ---------- Colisiones ----------
+function blocked(px,py){
+  const corners=[[px-4,py-2],[px+4,py-2],[px-4,py+3],[px+4,py+3]];
+  for(const [x,y] of corners){
+    if(x<0||y<0||x>=MAPW||y>=MAPH) return true;
+    if(solid[Math.floor(y/T)][Math.floor(x/T)]) return true;
+  }
+  return false;
+}
+
+// ---------- Cámara / escala ----------
+let scale=2;
+function resize(){
+  scale=Math.max(2,Math.round(Math.min(innerWidth/400,innerHeight/280)));
+  cvs.width=Math.ceil(innerWidth/scale); cvs.height=Math.ceil(innerHeight/scale);
+}
+addEventListener('resize',resize); resize();
+
+// ---------- Dibujo de tiles ----------
+function drawTile(c,r,x,y,t){
+  switch(tile[r][c]){
+    case 0: // pasto
+      ctx.fillStyle=(hash(c,r)%5===0)?'#5d9c48':'#66a850'; ctx.fillRect(x,y,T,T);
+      if(hash(c,r)%7===0){ ctx.fillStyle='#4e8a3c'; ctx.fillRect(x+4,y+6,2,2); ctx.fillRect(x+10,y+11,2,2); }
+      if(hash(c,r)%23===0){ ctx.fillStyle='#e8618c'; ctx.fillRect(x+7,y+4,2,2); ctx.fillStyle='#fff'; ctx.fillRect(x+11,y+9,2,2); }
+      break;
+    case 1: // vía
+      ctx.fillStyle='#5a5a60'; ctx.fillRect(x,y,T,T);
+      if(hash(c,r)%9===0){ ctx.fillStyle='#65656b'; ctx.fillRect(x+5,y+7,3,2); }
+      if(r>=16&&r<=18&&r===17&&c%2===0&&c<53){ ctx.fillStyle='#e8d44d'; ctx.fillRect(x+2,y+7,8,2); } // línea calle ppal
+      if(c>=54&&c<=57&&(c===55||c===56)===false){} // (líneas de variante abajo)
+      break;
+    case 2: // andén
+      ctx.fillStyle='#c9bda4'; ctx.fillRect(x,y,T,T);
+      ctx.strokeStyle='#b0a389'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,T-1,T-1); break;
+    case 3: // riel
+      ctx.fillStyle='#7a6a4f'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#8f7c5c'; ctx.fillRect(x,y+3,T,3); ctx.fillRect(x,y+10,T,3);
+      ctx.fillStyle='#4a4a50'; ctx.fillRect(x+3,y,2,T); ctx.fillRect(x+11,y,2,T); break;
+    case 4: // plaza
+      ctx.fillStyle=(c+r)%2?'#d8c9a3':'#cfbf97'; ctx.fillRect(x,y,T,T); break;
+    case 5: // agua
+      ctx.fillStyle='#3d7dc4'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#5b96d6';
+      const w=Math.floor(t*2+hash(c,r)%4)%4; ctx.fillRect(x+2+w,y+4,5,2); ctx.fillRect(x+7-w,y+10,5,2); break;
+    case 6: // cancha
+      ctx.fillStyle='#3f8f5a'; ctx.fillRect(x,y,T,T); break;
+  }
+}
+function drawCancha(cam){
+  const x=27*T-cam.x, y=22*T-cam.y;
+  ctx.strokeStyle='#e8f5e9'; ctx.lineWidth=1;
+  ctx.strokeRect(x+2.5,y+2.5,7*T-5,7*T-5);
+  ctx.beginPath(); ctx.moveTo(x+3.5*T,y+2); ctx.lineTo(x+3.5*T,y+7*T-2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x+3.5*T,y+3.5*T,10,0,7); ctx.stroke();
+  ctx.fillStyle='#ddd'; ctx.fillRect(x-2,y+2.5*T,4,2*T); ctx.fillRect(x+7*T-2,y+2.5*T,4,2*T);
+}
+
+// ---------- Dibujo de edificios ----------
+function roofHouse(x,y,w,col){ ctx.fillStyle=col; ctx.fillRect(x,y,w,14); ctx.fillStyle='rgba(0,0,0,.15)'; for(let i=0;i<w;i+=6) ctx.fillRect(x+i,y,1,14); }
+const housePal=[['#e0c9a6','#a33b2e'],['#cfd6e0','#456a8c'],['#e8d9b8','#7a4a2a'],['#d9c2d0','#8c4a6e']];
+function drawBuilding(b,cam,t){
+  const x=b.c*T-cam.x, y=b.r*T-cam.y, W=b.w*T, H=b.h*T;
+  if(b.type==='house'){
+    const [wall,roof]=housePal[b.v%4];
+    ctx.fillStyle=wall; ctx.fillRect(x,y+12,W,H-12);
+    roofHouse(x-2,y,W+4,roof);
+    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+W/2-4,y+H-14,8,14);           // puerta
+    ctx.fillStyle='#9ed1e8'; ctx.fillRect(x+5,y+18,8,8); ctx.fillRect(x+W-13,y+18,8,8); // ventanas
+    ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.strokeRect(x+5.5,y+18.5,7,7); ctx.strokeRect(x+W-12.5,y+18.5,7,7);
+  }
+  else if(b.type==='tienda'){
+    ctx.fillStyle='#e8d9b8'; ctx.fillRect(x,y+10,W,H-10);
+    ctx.fillStyle='#b03a2e'; ctx.fillRect(x-2,y,W+4,10);
+    for(let i=0;i<W+4;i+=8){ ctx.fillStyle=i%16?'#e8e8e8':'#b03a2e'; ctx.fillRect(x-2+i,y+10,8,5); } // toldo
+    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+W/2-5,y+H-16,10,16);
+    ctx.fillStyle='#9ed1e8'; ctx.fillRect(x+6,y+22,10,10);
+    ctx.fillStyle='#fff'; ctx.font='7px monospace'; ctx.fillText('TIENDA',x+W/2-12,y+8);
+  }
+  else if(b.type==='estacion'){
+    ctx.fillStyle='#8f6b46'; ctx.fillRect(x,y+8,W,H-8);
+    roofHouse(x-2,y,W+4,'#5c4632');
+    ctx.fillStyle='#3a2a18'; ctx.fillRect(x+W/2-4,y+H-10,8,10);
+  }
+  else if(b.type==='cultural'){
+    // arco escalonado verde característico
+    ctx.fillStyle='#b06a3a'; ctx.fillRect(x,y+26,W,H-26);                  // muros ladrillo
+    ctx.fillStyle='rgba(0,0,0,.12)'; for(let i=0;i<W;i+=8) ctx.fillRect(x+i,y+26,1,H-26);
+    ctx.fillStyle='#1f5c38';
+    ctx.fillRect(x+8,y+18,W-16,10); ctx.fillRect(x+20,y+10,W-40,10); ctx.fillRect(x+36,y+2,W-72,10);
+    ctx.fillStyle='#2e7d4f'; ctx.fillRect(x+8,y+18,W-16,3); ctx.fillRect(x+20,y+10,W-40,3); ctx.fillRect(x+36,y+2,W-72,3);
+    ctx.fillStyle='#9ed1e8';                                               // vitrales
+    for(let i=0;i<5;i++) ctx.fillRect(x+14+i*26,y+40,14,26);
+    ctx.fillStyle='#4a2c14'; ctx.fillRect(x+W/2-10,y+H-26,20,26);          // portón
+    ctx.fillStyle='#f5d442'; ctx.fillRect(x+W/2-1,y+H-16,2,6);
+    label(x+W/2,'CENTRO CULTURAL',y-4);
+  }
+  else if(b.type==='jac'){
+    ctx.fillStyle='#f2e6c8'; ctx.fillRect(x,y+16,W,H-16);                  // muros
+    ctx.fillStyle='#b3261e'; ctx.fillRect(x-3,y,W+6,18);                   // techo
+    ctx.fillStyle='rgba(0,0,0,.15)'; for(let i=0;i<W+6;i+=7) ctx.fillRect(x-3+i,y,1,18);
+    ctx.fillStyle='#9ed1e8';
+    ctx.fillRect(x+8,y+26,12,12); ctx.fillRect(x+W-20,y+26,12,12);
+    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+W/2-8,y+H-20,16,20);           // puerta
+    ctx.fillStyle='#f5d442'; ctx.fillRect(x+W/2+3,y+H-12,2,4);
+    // letrero
+    ctx.fillStyle='#14203a'; ctx.fillRect(x+W/2-26,y+19,52,10);
+    ctx.fillStyle='#f5d442'; ctx.font='7px monospace'; ctx.textAlign='center';
+    ctx.fillText('J A C',x+W/2,y+27); ctx.textAlign='left';
+    // asta con bandera de Colombia
+    const fx=x-8, fy=y+H-34;
+    ctx.fillStyle='#888'; ctx.fillRect(fx,fy,2,34);
+    const wave=Math.sin(perf/300)*1.5;
+    ctx.fillStyle='#fcd116'; ctx.fillRect(fx+2,fy+wave,16,5);
+    ctx.fillStyle='#003893'; ctx.fillRect(fx+2,fy+5+wave,16,2.5);
+    ctx.fillStyle='#ce1126'; ctx.fillRect(fx+2,fy+7.5+wave,16,2.5);
+    label(x+W/2,'SALÓN COMUNAL',y-4);
+    // marcador saltarín (hasta visitar)
+    if(!visitedJac){
+      const by=y-16+Math.sin(perf/250)*3;
+      ctx.fillStyle='#f5d442';
+      ctx.beginPath(); ctx.moveTo(x+W/2-6,by); ctx.lineTo(x+W/2+6,by); ctx.lineTo(x+W/2,by+8); ctx.fill();
+    }
+  }
+}
+function label(cx,txt,y){
+  ctx.font='7px monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,.6)'; const w=ctx.measureText(txt).width;
+  ctx.fillRect(cx-w/2-3,y-8,w+6,10);
+  ctx.fillStyle='#fff'; ctx.fillText(txt,cx,y); ctx.textAlign='left';
+}
+function drawTree(tr,cam){
+  const x=tr.c*T-cam.x, y=tr.r*T-cam.y;
+  ctx.fillStyle='#6e4a2a'; ctx.fillRect(x+6,y+8,4,8);
+  ctx.fillStyle='#3f7a30'; ctx.fillRect(x+1,y-6,14,12);
+  ctx.fillStyle='#4e9440'; ctx.fillRect(x+3,y-4,10,8); ctx.fillRect(x-1,y+0,4,6); ctx.fillRect(x+13,y,4,6);
+  ctx.fillStyle='#5fae4e'; ctx.fillRect(x+5,y-2,6,4);
+}
+function drawCar(car,cam){
+  const x=car.x-cam.x, y=car.y-cam.y;
+  ctx.fillStyle=car.col; ctx.fillRect(x-5,y-10,10,20);
+  ctx.fillStyle='#222'; ctx.fillRect(x-6,y-8,2,5); ctx.fillRect(x+4,y-8,2,5); ctx.fillRect(x-6,y+4,2,5); ctx.fillRect(x+4,y+4,2,5);
+  ctx.fillStyle='#bde0f0'; ctx.fillRect(x-3,car.v>0?y-7:y+3,6,4);
+}
+function drawPlayer(cam){
+  const x=Math.round(player.x-cam.x), y=Math.round(player.y-cam.y);
+  const step=player.moving?Math.floor(player.anim*8)%2:0;
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x-5,y+1,10,4);            // sombra
+  ctx.fillStyle='#28405e';                                                 // piernas
+  ctx.fillRect(x-4,y-6+(step?1:0),3,7-(step?1:0)); ctx.fillRect(x+1,y-6+(step?0:1),3,7-(step?0:1));
+  ctx.fillStyle='#c62828'; ctx.fillRect(x-5,y-14,10,9);                    // camiseta
+  ctx.fillStyle='#e8b48c'; ctx.fillRect(x-4,y-21,8,7);                     // cara
+  ctx.fillStyle='#3a2a18'; ctx.fillRect(x-4,y-23,8,3);                     // pelo
+  if(player.dir!=='up'){ ctx.fillStyle='#222';
+    if(player.dir!=='right') ctx.fillRect(x-3,y-18,2,2);
+    if(player.dir!=='left')  ctx.fillRect(x+1,y-18,2,2); }
+  ctx.fillStyle='#e8b48c'; ctx.fillRect(x-6,y-13+(step?2:0),2,5); ctx.fillRect(x+4,y-13+(step?0:2),2,5); // brazos
+}
+
+// ---------- Bucle ----------
+let perf=0, last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; perf=now;
+
+  // --- update ---
+  if(started&&!modalOpen){
+    let dx=0,dy=0;
+    if(keys['w']||keys['arrowup'])dy-=1; if(keys['s']||keys['arrowdown'])dy+=1;
+    if(keys['a']||keys['arrowleft'])dx-=1; if(keys['d']||keys['arrowright'])dx+=1;
+    if(joy.active&&Math.hypot(joy.dx,joy.dy)>.25){ dx=joy.dx; dy=joy.dy; }
+    const len=Math.hypot(dx,dy);
+    player.moving=len>0.01;
+    if(player.moving){
+      dx/=len; dy/=len;
+      if(Math.abs(dx)>Math.abs(dy)) player.dir=dx>0?'right':'left'; else player.dir=dy>0?'down':'up';
+      const nx=player.x+dx*SPEED*dt, ny=player.y+dy*SPEED*dt;
+      if(!blocked(nx,player.y)) player.x=nx;
+      if(!blocked(player.x,ny)) player.y=ny;
+      player.anim+=dt*2;
+    }
+  }
+  for(const car of cars){ car.y+=car.v*dt; if(car.y>MAPH+30)car.y=-30; if(car.y<-30)car.y=MAPH+30; }
+
+  // punto de interés cercano
+  nearPoi=null;
+  if(started&&!modalOpen){
+    for(const p of pois) if(Math.hypot(player.x-p.x,player.y-p.y)<p.r){ nearPoi=p; break; }
+  }
+  if(nearPoi){ promptEl.innerHTML=`<b>[E]</b> ${nearPoi.label} — ver información`; promptEl.style.display='block'; }
+  else promptEl.style.display='none';
+
+  // --- draw ---
+  const cam={ x:Math.round(Math.min(Math.max(player.x-cvs.width/2,0),Math.max(0,MAPW-cvs.width))),
+              y:Math.round(Math.min(Math.max(player.y-cvs.height/2,0),Math.max(0,MAPH-cvs.height))) };
+  if(MAPW<cvs.width) cam.x=-(cvs.width-MAPW)/2;
+  if(MAPH<cvs.height) cam.y=-(cvs.height-MAPH)/2;
+
+  ctx.fillStyle='#243a24'; ctx.fillRect(0,0,cvs.width,cvs.height);
+  const c0=Math.max(0,Math.floor(cam.x/T)), c1=Math.min(COLS-1,Math.ceil((cam.x+cvs.width)/T));
+  const r0=Math.max(0,Math.floor(cam.y/T)), r1=Math.min(ROWS-1,Math.ceil((cam.y+cvs.height)/T));
+  for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++) drawTile(c,r,c*T-cam.x,r*T-cam.y,now/1000);
+  drawCancha(cam);
+
+  // líneas de la variante
+  ctx.fillStyle='#e8d44d';
+  for(let y=(-(now/18)%32);y<cvs.height+32;y+=32){ ctx.fillRect(55.9*T-cam.x,y,2,14); }
+  ctx.fillStyle='#fff'; ctx.font='7px monospace';
+  if(53*T-cam.x>-100&&53*T-cam.x<cvs.width){ ctx.save(); ctx.translate(55.6*T-cam.x,6*T-cam.y); ctx.rotate(Math.PI/2); ctx.fillText('VARIANTE DE CAJICÁ',0,0); ctx.restore(); }
+
+  for(const car of cars) drawCar(car,cam);
+
+  // sprites ordenados por profundidad
+  const sprites=[];
+  for(const b of buildings) sprites.push({y:(b.r+b.h)*T, draw:()=>drawBuilding(b,cam,now)});
+  for(const tr of trees)    sprites.push({y:(tr.r+1)*T,  draw:()=>drawTree(tr,cam)});
+  sprites.push({y:player.y, draw:()=>drawPlayer(cam)});
+  sprites.sort((a,b)=>a.y-b.y);
+  for(const s of sprites) s.draw();
+
+  // flecha guía hacia la JAC
+  if(started&&!visitedJac&&!modalOpen){
+    const d=Math.hypot(jacDoor.x-player.x,jacDoor.y-player.y);
+    if(d>140){
+      const a=Math.atan2(jacDoor.y-player.y,jacDoor.x-player.x);
+      const ax=player.x-cam.x+Math.cos(a)*26, ay=player.y-cam.y-10+Math.sin(a)*26;
+      ctx.save(); ctx.translate(ax,ay); ctx.rotate(a);
+      ctx.fillStyle='#f5d442'; ctx.beginPath(); ctx.moveTo(6,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.fill();
+      ctx.strokeStyle='#4a3a05'; ctx.stroke(); ctx.restore();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
