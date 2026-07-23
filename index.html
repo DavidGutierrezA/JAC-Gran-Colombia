@@ -1,133 +1,985 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | Willow</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">Willow</div>
-      </div>
-    </div>
-    <script>
-      var canvas = document.querySelector("#unity-canvas");
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JAC Barrio Gran Colombia — Cajicá</title>
+<meta name="description" content="Junta de Acción Comunal del Barrio Gran Colombia, Cajicá. Recorre el barrio, entra al Salón Comunitario y pide tu certificado de residencia.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#141c14; touch-action:none;
+    font-family:'Press Start 2P', monospace; }
+  #game { position:absolute; inset:0; width:100vw; height:100vh; image-rendering:pixelated; image-rendering:crisp-edges; }
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
+  #hud { position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between;
+    pointer-events:none; z-index:5; gap:8px; flex-wrap:wrap; }
+  .hudbox { background:rgba(20,26,20,.82); border:2px solid #f5d442; color:#fff; padding:7px 10px;
+    font-size:9px; line-height:1.6; border-radius:4px; box-shadow:2px 2px 0 rgba(0,0,0,.5); }
+  #street { border-color:#7fb3e8; color:#bfe0ff; }
+  #objective { color:#f5d442; }
+  #goJac { pointer-events:auto; cursor:pointer; font-family:inherit; font-size:9px;
+    background:#155e2b; border:2px solid #0c3a1a; color:#fff; padding:7px 10px;
+    border-radius:4px; box-shadow:0 3px 0 #0c3a1a; }
+  #goJac:active { transform:translateY(2px); box-shadow:none; }
+
+  #prompt { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
+    background:#14203a; border:2px solid #fff; color:#fff; font-size:10px; padding:10px 14px;
+    border-radius:4px; display:none; z-index:6; cursor:pointer; box-shadow:3px 3px 0 rgba(0,0,0,.5);
+    animation:bump 1s infinite; white-space:nowrap; max-width:92vw; }
+  @keyframes bump { 50% { transform:translateX(-50%) translateY(-3px);} }
+  #prompt b { color:#f5d442; }
+
+  #overlay { position:absolute; inset:0; background:rgba(0,0,0,.55); display:none; z-index:10; }
+  #modal { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(92vw,460px); max-height:86vh; overflow-y:auto; background:#f8f0dc; color:#2b2318;
+    border:4px solid #2b2318; border-radius:6px; box-shadow:6px 6px 0 rgba(0,0,0,.55); padding:18px; }
+  #modal h2 { font-size:12px; color:#b3261e; margin-bottom:12px; line-height:1.6; }
+  #modal h3 { font-size:9px; color:#155e2b; margin:14px 0 6px; }
+  #modal p, #modal li { font-size:8px; line-height:1.9; }
+  #modal ul { list-style:none; }
+  #modal li::before { content:"► "; color:#b3261e; }
+  #modal .tel { display:block; background:#155e2b; color:#fff; text-decoration:none; text-align:center;
+    font-size:10px; padding:12px; margin:10px 0 6px; border-radius:4px; border:2px solid #0c3a1a;
+    box-shadow:0 3px 0 #0c3a1a; }
+  #modal .tel.wa { background:#1f7a33; }
+  #modal .tel.maps { background:#1a5fb4; border-color:#0d3a72; box-shadow:0 3px 0 #0d3a72; }
+  #modal .tel:active { transform:translateY(2px); box-shadow:none; }
+  #closeBtn { margin-top:14px; width:100%; background:#b3261e; color:#fff; border:2px solid #6e120d;
+    font-family:inherit; font-size:9px; padding:10px; border-radius:4px; cursor:pointer; box-shadow:0 3px 0 #6e120d; }
+  #closeBtn:active { transform:translateY(2px); box-shadow:none; }
+  .flagline { height:6px; margin-bottom:12px; background:linear-gradient(to bottom,#fcd116 0 50%,#003893 50% 75%,#ce1126 75% 100%); }
+
+  #intro { position:absolute; inset:0; z-index:20; background:rgba(10,16,10,.88);
+    display:flex; align-items:center; justify-content:center; }
+  #introCard { width:min(92vw,470px); background:#f8f0dc; color:#2b2318; border:4px solid #2b2318;
+    border-radius:6px; padding:22px; text-align:center; box-shadow:6px 6px 0 rgba(0,0,0,.6); }
+  #introCard h1 { font-size:14px; color:#b3261e; line-height:1.7; margin-bottom:4px; }
+  #introCard h2 { font-size:9px; color:#155e2b; margin-bottom:14px; }
+  #introCard p { font-size:8px; line-height:1.9; margin-bottom:8px; }
+  #playBtn { font-family:inherit; font-size:11px; background:#155e2b; color:#fff; border:2px solid #0c3a1a;
+    padding:14px 26px; border-radius:4px; cursor:pointer; margin-top:10px; box-shadow:0 4px 0 #0c3a1a; }
+  #playBtn:active { transform:translateY(3px); box-shadow:none; }
+
+  #joy { position:absolute; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.12);
+    border:2px solid rgba(255,255,255,.35); display:none; z-index:7; pointer-events:none; }
+  #stick { position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.45);
+    left:32px; top:32px; }
+  #btnA { position:absolute; right:22px; bottom:26px; width:66px; height:66px; border-radius:50%;
+    background:rgba(245,212,66,.85); border:3px solid #a8861c; color:#4a3a05; font-family:inherit;
+    font-size:16px; display:none; z-index:7; box-shadow:0 4px 0 #a8861c; }
+  #btnA:active { transform:translateY(3px); box-shadow:none; }
+  body.touch #btnA { display:block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hudbox" id="street">📍 Barrio Gran Colombia</div>
+  <div class="hudbox" id="objective">Objetivo: llega al Salón Comunitario (JAC) ➜</div>
+  <button id="goJac">🏛 Ir al Salón</button>
+</div>
+
+<div id="prompt"></div>
+<div id="joy"><div id="stick"></div></div>
+<button id="btnA">A</button>
+
+<div id="overlay">
+  <div id="modal">
+    <div id="modalContent"></div>
+    <button id="closeBtn">CERRAR ✕</button>
+  </div>
+</div>
+
+<div id="intro">
+  <div id="introCard">
+    <h1>BARRIO<br>GRAN COLOMBIA</h1>
+    <h2>Junta de Acción Comunal · Cajicá</h2>
+    <div class="flagline"></div>
+    <p>Recorre la <b>Calle 1</b> desde el <b>Centro Cultural</b> y <b>entra al Salón Comunitario</b> para pedir tu certificado de residencia.</p>
+    <p>🖥 PC: <b>WASD / flechas</b> para caminar, <b>E</b> para interactuar.<br>📱 Celular: <b>joystick</b> (toca la pantalla) y botón <b>A</b>.</p>
+    <button id="playBtn">▶ ENTRAR AL BARRIO</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   =====================================================================
+        SECCIÓN EDITABLE — todo lo que normalmente querrás cambiar.
+        El "motor" del juego está más abajo y no hace falta tocarlo.
+
+        El mapa mide 122 x 70 casillas. Solo se puede caminar por las
+        calles (y sus andenes), los parques y la zona del Centro
+        Cultural. Las manzanas son sólidas y muestran sus fachadas.
+   =====================================================================
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. DATOS DE CONTACTO Y TEXTOS DE LA JAC
+   --------------------------------------------------------------------- */
+const CONFIG = {
+  telefono:  "310 000 0000",        // ← CAMBIAR: número para certificados
+  whatsapp:  "573100000000",        // ← CAMBIAR: solo dígitos, con 57 adelante
+  horario:   "Sábados de 9:00 a.m. a 12:00 m.",   // ← CAMBIAR si es otro
+  requisitos: [
+    "Nombre completo y cédula",
+    "Dirección exacta de la vivienda",
+    "Tiempo de residencia en el barrio",
+    "Número de contacto",
+  ],
+  mensaje: "¡Bienvenido al Salón Comunitario! La JAC del Barrio Gran Colombia trabaja por el bienestar de todos los vecinos.",
+  cartelera: [                       // anuncios de la cartelera (dentro del salón)
+    "Asamblea general: primer domingo del mes",
+    "Actividades comunitarias: pregunta en la oficina",
+    "¡Mantén limpio el barrio!",
+  ],
+  // Enlaces de Google Maps (pega aquí los enlaces de "Compartir" exactos)
+  mapsJac:      "https://www.google.com/maps/search/?api=1&query=Sal%C3%B3n+Comunitario+La+Gran+Colombia+Cajic%C3%A1",
+  mapsCultural: "https://www.google.com/maps/search/?api=1&query=Centro+Cultural+y+de+Convenciones+de+Cajic%C3%A1",
+};
+
+/* ---------------------------------------------------------------------
+   2. CALLES (líneas rojas y azul del plano)
+   n = nombre · w = ancho (1.5 la principal, 0.8 las del barrio,
+   2 la variante) · p = puntos [x,y] en casillas; 2 puntos = recta.
+   El nombre se pinta sobre la vía y sale en el HUD al caminar por ella.
+   --------------------------------------------------------------------- */
+// 9 calles salen de la Calle 1: 2 hacia arriba (la Cra 2, que separa el
+// Centro Cultural de Huertas, y la entrada a Huertas) y 7 hacia abajo
+// (la Cra 2 cruza). Las demás son internas o ramales, según Google Earth.
+const STREETS = [
+  {n:'Calle 1',           w:1.5, p:[[0,22],[94,22]]},      // ← la azul (principal)
+  // — hacia arriba (norte) —
+  {n:'Carrera 2 Este',    w:0.8, p:[[24,0],[24,59]]},      // cruza: separa C. Cultural de Huertas
+  {n:'Entrada Huertas',   w:0.8, p:[[59,0],[59,22]]},
+  // — hacia abajo (sur) —
+  {n:'Carrera 3A Este',   w:0.8, p:[[32,22],[32,59]]},
+  {n:'Carrera 4 Este',    w:0.8, p:[[37,22],[37,33]]},     // corta
+  {n:'Carrera 5 Este',    w:0.8, p:[[48,22],[48,58]]},
+  {n:'Carrera 5B Este',   w:0.8, p:[[56,22],[56,45]]},
+  {n:'Carrera 6 Este',    w:0.8, p:[[61,22],[61,58]]},
+  {n:'Carrera 7 Este',    w:0.8, p:[[74,22],[74,54]]},     // aquí da el Salón Comunitario
+  // — internas y ramales —
+  {n:'Carrera 6A Este',   w:0.8, p:[[67,32],[67,45]]},
+  {n:'Carrera 7A Este',   w:0.8, p:[[88,39],[88,56]]},
+  {n:'Calle 1A',          w:0.8, p:[[61,32],[74,32]]},
+  {n:'Calle 1 Sur',       w:0.8, p:[[74,39],[94,39]]},
+  {n:'Calle 1A Sur',      w:0.8, p:[[61,45],[88,45]]},
+  {n:'Calle 1B Sur',      w:0.8, p:[[61,49],[67,49]]},
+  {n:'Calle 2 Sur',       w:0.8, p:[[81,56],[92,56]]},
+  {n:'Calle 1C Sur',      w:0.8, p:[[32,59],[48,59]]},
+  {n:'Variante de Cajicá · 45A', w:2, p:[[97,0],[97,70]]},
+];
+// Riel del tren (recto, al occidente del Centro Cultural)
+const RIEL = [[3,0],[3,70]];
+
+/* ---------------------------------------------------------------------
+   3. MANZANAS (zonas amarillas del plano: casas con fachada,
+      NO se puede caminar por ellas)
+   c,r = esquina superior izquierda · w,h = tamaño en casillas ·
+   pal: 0 = tejas variadas (barrio) · 1 = teja naranja (conjuntos)
+   --------------------------------------------------------------------- */
+const MANZANAS = [
+  {c:26,r:0, w:32,h:17,pal:1},   // Huertas de Cajicá occidente (otro barrio: se ve, no se pasa)
+  {c:61,r:0, w:34,h:17,pal:1},   // Huertas de Cajicá oriente
+  {c:9, r:25,w:14,h:34,pal:1},   // Parques de la Estación (conjunto, barrio La Estación)
+  {c:25,r:33,w:6, h:25,pal:0},   // bajo el Parque 1
+  {c:34,r:25,w:3, h:12,pal:0},   // entre Cra 3A y Cra 4
+  {c:39,r:34,w:9, h:4, pal:0},   // entre las dos zonas verdes
+  {c:50,r:28,w:5, h:30,pal:0},   // entre Cra 5 y 5B (bajo la Virgen)
+  {c:58,r:25,w:2, h:33,pal:0},   // franja angosta entre 5B y Cra 6
+  {c:63,r:25,w:10,h:6, pal:0},   // Cra 6 – Cra 7, sobre la Calle 1A
+  {c:63,r:34,w:3, h:10,pal:0},   // Cra 6 – Cra 6A
+  {c:69,r:34,w:4, h:10,pal:0},   // Cra 6A – Cra 7
+  {c:63,r:51,w:10,h:7, pal:0},   // bajo la Calle 1B Sur
+  {c:76,r:25,w:18,h:9, pal:0},   // oriente de Cra 7, encima del Salón
+  {c:84,r:34,w:10,h:4, pal:0},   // al oriente de la cancha
+  {c:76,r:41,w:11,h:3, pal:0},   // Calle 1 Sur – Calle 1A Sur
+  {c:90,r:41,w:4, h:3, pal:0},
+  {c:76,r:47,w:11,h:8, pal:0},   // Calle 1A Sur – Calle 2 Sur
+  {c:90,r:47,w:4, h:8, pal:0},
+];
+
+/* ---------------------------------------------------------------------
+   4. PARQUES Y ZONAS VERDES (sí se puede caminar)
+   --------------------------------------------------------------------- */
+const PARQUES = [
+  {c:24,r:17,w:71,h:3},          // Parque Huertas: franja verde al norte de la Calle 1
+  {c:4, r:25,w:5, h:34},         // PARQUE (franja occidental)
+  {c:25,r:25,w:6, h:8},          // Parque 1 (ancho, entre Cra 2 y Cra 3A)
+  {c:39,r:25,w:9, h:9},          // zona verde norte (la que tiene una casa)
+  {c:33,r:38,w:15,h:19},         // zona verde grande (con el parque de perros abajo)
+  {c:50,r:25,w:5, h:3},          // plazoleta de la Virgen del Carmen
+];
+
+/* ---------------------------------------------------------------------
+   5. PUNTOS IMPORTANTES (con ventana de información)
+   Para añadir uno: copia un bloque {...}. El juego crea el aviso,
+   la ventana y despeja los árboles automáticamente. maps es opcional.
+   --------------------------------------------------------------------- */
+const PUNTOS = [
+  { x:17.5, y:15.4, r:2.3, label:'Centro Cultural', maps:CONFIG.mapsCultural,
+    titulo:'🎭 Centro Cultural y de Convenciones',
+    texto:'Uno de los centros culturales más grandes de Colombia, inaugurado en 2016. Queda fuera del barrio, pero es el punto más llamativo del recorrido.<br><br>La JAC está al oriente: sigue la <b>Calle 1</b> y baja por la <b>Carrera 7 Este</b>; el salón está en la esquina con la <b>Calle 1 Sur</b>, con su cancha detrás. ➜' },
+  { x:6.5,  y:40,   r:2,   label:'El parque',
+    titulo:'🌳 El parque',
+    texto:'Franja verde del costado occidental, junto al conjunto Parques de la Estación.' },
+  { x:27.5, y:28,   r:1.8, label:'Parque 1',
+    titulo:'🌳 Parque 1',
+    texto:'Parquecito del barrio sobre la Carrera 2 Este.' },
+  { x:44,   y:31,   r:2,   label:'Zona verde',
+    titulo:'🌿 Zona verde norte',
+    texto:'Zona verde del barrio… que tiene una casa adentro. Cosas de Gran Colombia.' },
+  { x:82,   y:36.5, r:2.2, label:'Cancha del salón',
+    titulo:'⚽ Cancha del Salón Comunal',
+    texto:'La cancha de la JAC, justo detrás del salón. Campeonatos y actividades deportivas: pregunta en la oficina.' },
+  { x:36,   y:54,   r:2,   label:'Parque de perros',
+    titulo:'🐕 Parque de perros',
+    texto:'Al fondo de la zona verde grande. Aquí los perros del barrio corren felices; recuerda recoger los desechos de tu mascota.' },
+  { x:40,   y:18.5, r:2,   label:'Parque Huertas',
+    titulo:'🌳 Parque Huertas',
+    texto:'Franja verde al norte de la Calle 1. Hace parte del barrio <b>La Estación</b>, nuestro vecino.' },
+  { x:53,   y:27.6, r:1.8, label:'Virgen del Carmen',
+    titulo:'⛪ Virgen del Carmen',
+    texto:'Santuario de la Virgen del Carmen, sobre el costado sur de la Calle 1 (territorio Gran Colombia). Los vecinos le dejan flores y velas.' },
+  { x:65,   y:18.5, r:2,   label:'Huertas de Cajicá',
+    titulo:'🏘 Huertas de Cajicá',
+    texto:'Conjuntos residenciales al norte de la Calle 1. Pertenecen a <b>otro barrio</b>: se ven sus fachadas, pero el territorio de la JAC no llega hasta allá.' },
+  { x:94,   y:23,   r:2,   label:'Variante · 45A',
+    titulo:'🚗 Variante de Cajicá (45A)',
+    texto:'Límite urbano oriental. ¡Mucho cuidado al cruzar! El territorio de la JAC sigue por la vereda hasta el <b>río Bogotá</b>.' },
+  { x:30,   y:66,   r:1.6, label:'La vaca',
+    titulo:'🐄 Muuu.',
+    texto:'La vaca de los cultivos te mira fijamente. Parece que aprueba tu recorrido.' },
+];
+
+/* ---------------------------------------------------------------------
+   6. LETREROS FIJOS SOBRE EL MAPA (solo texto)
+   --------------------------------------------------------------------- */
+const LETREROS = [
+  { x:16,   y:40,   t:'PARQUES DE LA ESTACIÓN' },
+  { x:42,   y:8,    t:'HUERTAS DE CAJICÁ' },
+  { x:78,   y:8,    t:'HUERTAS DE CAJICÁ' },
+  { x:40,   y:52,   t:'PARQUE DE PERROS' },
+];
+
+/* ---------------------------------------------------------------------
+   7. LÍMITE DEL TERRITORIO JAC (línea amarilla del plano oficial)
+   --------------------------------------------------------------------- */
+const LIMITS = [
+  [[24,20.2],[94,20.2],[101,21]],                            // norte (Calle 1)
+  [[24,20.2],[24,63],[27,70]],                               // occidente (Cra 2 Este)
+  [[101,21],[107,44],[110,50],[108,56],[112,62],[110,70]],   // oriente (río Bogotá)
+];
+
+/* =====================================================================
+   =====================================================================
+        MOTOR DEL JUEGO — de aquí para abajo no hace falta editar
+   =====================================================================
+   ===================================================================== */
+const T = 16;
+const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
+const hash = (c,r)=>((c*73856093)^(r*19349663))>>>0;
+
+/* ----------------  construcción del mundo  ---------------- */
+const W = { cols:122, rows:70 };
+W.mapw=W.cols*T; W.maph=W.rows*T;
+W.tile  = Array.from({length:W.rows},()=>Array(W.cols).fill(0));
+W.solid = Array.from({length:W.rows},()=>Array(W.cols).fill(false));
+const MZ = Array.from({length:W.rows},()=>Array(W.cols).fill(0));   // meta de manzanas
+
+// tiles: 0 pasto 1 vía 2 andén 3 riel 4 plaza 5 agua 7 cultivo 8 parque 9 plaza gris 13 manzana
+function paintPoly(S,pts,w,t){
+  for(let i=0;i<pts.length-1;i++){
+    const [x0,y0]=pts[i],[x1,y1]=pts[i+1];
+    const d=Math.hypot(x1-x0,y1-y0), steps=Math.max(1,Math.ceil(d*3));
+    for(let s=0;s<=steps;s++){
+      const x=x0+(x1-x0)*s/steps, y=y0+(y1-y0)*s/steps;
+      for(let rr=Math.floor(y-w);rr<=Math.ceil(y+w);rr++)
+        for(let cc=Math.floor(x-w);cc<=Math.ceil(x+w);cc++)
+          if(rr>=0&&rr<S.rows&&cc>=0&&cc<S.cols && (cc-x)*(cc-x)+(rr-y)*(rr-y)<=w*w) S.tile[rr][cc]=t;
+    }
+  }
+}
+function zoneFill(x0,y0,x1,y1,t){ for(let r=y0;r<=y1;r++)for(let c=x0;c<=x1;c++) if(r>=0&&r<W.rows&&c>=0&&c<W.cols) W.tile[r][c]=t; }
+
+// terreno base
+zoneFill(0,63,94,69,7);           // cultivos al sur
+zoneFill(100,0,121,69,7);         // vereda oriental (el territorio sigue hasta el río)
+for(const p of PARQUES) zoneFill(p.c,p.r,p.c+p.w-1,p.r+p.h-1,8);
+zoneFill(10,4,23,20,9);           // explanada del Centro Cultural (baldosa gris)
+zoneFill(2,5,2,6,4);              // andén de la antigua estación (occidente del riel)
+zoneFill(80,34,83,38,14);         // cancha del Salón Comunitario (detrás del salón)
+// riel, calles y río
+paintPoly(W,RIEL,0.9,3);
+for(const s of STREETS) paintPoly(W,s.p,s.w,1);
+paintPoly(W,[[112,0],[115,10],[111,20],[116,30],[113,40],[118,50],[114,60],[117,70]],2.4,5); // río Bogotá
+// manzanas (sólidas, con fachada al frente)
+for(let bi=0;bi<MANZANAS.length;bi++){
+  const b=MANZANAS[bi];
+  for(let r=b.r;r<b.r+b.h;r++)for(let c=b.c;c<b.c+b.w;c++){
+    if(r<0||c<0||r>=W.rows||c>=W.cols) continue;
+    W.tile[r][c]=13; W.solid[r][c]=true;
+    MZ[r][c]=1 + b.pal*4 + ((b.r+b.h-1-r)%3);   // 0 fachada · 1-2 techo
+  }
+}
+// andenes automáticos junto a las vías
+const dirs8=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+{
+  const sw=[];
+  for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
+    if(W.tile[r][c]!==0&&W.tile[r][c]!==8) continue;
+    for(const [dx,dy] of dirs8){
+      const rr=r+dy, cc=c+dx;
+      if(rr>=0&&rr<W.rows&&cc>=0&&cc<W.cols&&W.tile[rr][cc]===1){ sw.push([r,c]); break; }
+    }
+  }
+  for(const [r,c] of sw) W.tile[r][c]=2;
+}
+// sólidos del terreno
+for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
+  if(W.tile[r][c]===3||W.tile[r][c]===5) W.solid[r][c]=true;
+  if(c>=95&&c<=99) W.solid[r][c]=true;   // la variante no se cruza a pie
+}
+
+/* ----------------  edificios especiales  ---------------- */
+const B = [
+  {c:12,r:7, w:11,h:8, type:'cultural'},   // Centro Cultural
+  {c:76,r:34,w:4, h:4, type:'jac'},        // Salón: da a la Cra 7 Este, esquina Calle 1 Sur; cancha detrás
+  {c:0, r:2, w:3, h:3, type:'estacion'},   // antigua estación (al otro lado del riel)
+  {c:52,r:25,w:2, h:2, type:'virgen'},     // Virgen del Carmen (costado sur de la Calle 1)
+  {c:42,r:27,w:3, h:3, type:'house',v:0},  // la casa dentro de la zona verde norte
+];
+function stamp(b){ for(let r=b.r;r<b.r+b.h;r++)for(let c=b.c;c<b.c+b.w;c++) W.solid[r][c]=true; }
+B.forEach(stamp);
+
+/* ----------------  árboles  ---------------- */
+const nearBuilding=(c,r)=>{
+  for(const [dx,dy] of dirs8){
+    const rr=r+dy, cc=c+dx;
+    if(rr<0||cc<0||rr>=W.rows||cc>=W.cols) continue;
+    for(const b of B) if(cc>=b.c&&cc<b.c+b.w&&rr>=b.r&&rr<b.r+b.h) return true;
+  }
+  return false;
+};
+const trees=[];
+for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
+  if(W.solid[r][c]) continue;
+  const t=W.tile[r][c], h=hash(c,r);
+  const put = (t===0&&h%23===0) || (t===8&&h%8===0) || (t===7&&h%61===0);
+  if(put && !nearBuilding(c,r)){ trees.push({c,r}); W.solid[r][c]=true; }
+}
+// despejar los alrededores de cada punto importante
+for(const p of PUNTOS){
+  for(let i=trees.length-1;i>=0;i--){
+    const tr=trees[i];
+    if(Math.abs(tr.c+0.5-p.x)<2.4 && Math.abs(tr.r+0.5-p.y)<2.4){ W.solid[tr.r][tr.c]=false; trees.splice(i,1); }
+  }
+}
+
+/* ----------------  letreros de calle y HUD de dirección  ---------------- */
+const streetLabels=[];
+for(const s of STREETS){
+  let acc=0;
+  for(let i=0;i<s.p.length-1;i++){
+    const [x0,y0]=s.p[i],[x1,y1]=s.p[i+1];
+    const d=Math.hypot(x1-x0,y1-y0);
+    let ang=Math.atan2(y1-y0,x1-x0);
+    if(ang>Math.PI/2) ang-=Math.PI; if(ang<-Math.PI/2) ang+=Math.PI;
+    for(let q=11;q<d+acc;q+=22){
+      const f=(q-acc)/d; if(f<0||f>1) continue;
+      streetLabels.push({x:(x0+(x1-x0)*f)*T, y:(y0+(y1-y0)*f)*T, ang, n:s.n.toUpperCase()});
+    }
+    acc=(acc+d)%22;
+  }
+}
+function streetAt(px,py){
+  const x=px/T, y=py/T;
+  let best=null, bd=1e9;
+  for(const s of STREETS){
+    for(let i=0;i<s.p.length-1;i++){
+      const [x0,y0]=s.p[i],[x1,y1]=s.p[i+1];
+      const dx=x1-x0, dy=y1-y0, L2=dx*dx+dy*dy;
+      let t0=((x-x0)*dx+(y-y0)*dy)/L2; t0=Math.max(0,Math.min(1,t0));
+      const d=Math.hypot(x-(x0+dx*t0), y-(y0+dy*t0));
+      if(d<bd){ bd=d; best=s; }
+    }
+  }
+  return (best&&bd<=best.w+1.4) ? best.n : null;
+}
+
+/* ----------------  puntos de interés y actores  ---------------- */
+const jacDoor = {x:78*T, y:38*T+6};
+W.pois = [
+  {x:jacDoor.x, y:jacDoor.y, r:26, act:'enter', label:'Entrar al Salón Comunitario · JAC'},
+  ...PUNTOS.filter(p=>!p.oculto).map(p=>({x:p.x*T, y:p.y*T, r:(p.r||1.7)*T, act:'modal', punto:p, label:p.label})),
+];
+const npcs = [ {x:27.5*T, y:29*T, dir:'down', pal:['#2e7d4f','#f5cba7','#222']} ];
+const cow  = {x:30*T, y:66*T};
+const dog  = {x:36.5*T, y:54.5*T};
+const cars=[
+  {x:96.2*T, y:80,  v: 55, col:'#c62828'},
+  {x:96.2*T, y:640, v: 46, col:'#1565c0'},
+  {x:98.3*T, y:900, v:-52, col:'#f9a825'},
+  {x:98.3*T, y:300, v:-60, col:'#556b2f'},
+];
+const train = {y:-600, v:150};
+const railX = ()=> 3.5*T;
+
+/* ----------------  interior de la JAC  ---------------- */
+const I = { cols:14, rows:10 };
+I.mapw=I.cols*T; I.maph=I.rows*T;
+I.tile  = Array.from({length:I.rows},()=>Array(I.cols).fill(10));
+I.solid = Array.from({length:I.rows},()=>Array(I.cols).fill(false));
+for(let c=0;c<I.cols;c++){ I.tile[0][c]=11; I.tile[1][c]=11; I.tile[9][c]=11; }
+for(let r=0;r<I.rows;r++){ I.tile[r][0]=11; I.tile[r][13]=11; }
+I.tile[9][6]=12; I.tile[9][7]=12;
+for(let r=0;r<I.rows;r++)for(let c=0;c<I.cols;c++) I.solid[r][c]=(I.tile[r][c]===11);
+for(let c=5;c<=8;c++) I.solid[3][c]=true;
+[[3,6],[4,6],[9,6],[10,6],[1,2],[12,2],[1,7],[12,7]].forEach(p=>I.solid[p[1]][p[0]]=true);
+I.pois = [
+  {x:7*T, y:4.5*T,   r:30, act:'modal', key:'jac',       label:'Hablar con la secretaria'},
+  {x:10.5*T, y:2.8*T, r:26, act:'modal', key:'cartelera', label:'Leer la cartelera'},
+];
+
+/* ----------------  ventanas de información  ---------------- */
+const poiContent = {
+  jac: ()=>`
+    <h2>🏛 Junta de Acción Comunal<br>Barrio Gran Colombia</h2>
+    <div class="flagline"></div>
+    <p><b>Salón Comunitario La Gran Colombia</b> · Carrera 7 Este, esquina con la Calle 1 Sur.</p>
+    <p>${CONFIG.mensaje}</p>
+    <h3>📜 Certificados de residencia</h3>
+    <p>Solicítalos llamando o escribiendo al:</p>
+    <a class="tel" href="tel:${CONFIG.telefono.replace(/\s/g,'')}">📞 ${CONFIG.telefono}</a>
+    <a class="tel wa" href="https://wa.me/${CONFIG.whatsapp}?text=Hola,%20quiero%20solicitar%20un%20certificado%20de%20residencia%20(Barrio%20Gran%20Colombia)" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+    <a class="tel maps" href="${CONFIG.mapsJac}" target="_blank" rel="noopener">🗺 Cómo llegar (Google Maps)</a>
+    <h3>🕐 Horario de atención</h3>
+    <p>${CONFIG.horario}</p>
+    <h3>📋 Requisitos</h3>
+    <ul>${CONFIG.requisitos.map(r=>`<li>${r}</li>`).join('')}</ul>`,
+  cartelera: ()=>`
+    <h2>📌 Cartelera comunal</h2>
+    <ul>${CONFIG.cartelera.map(r=>`<li>${r}</li>`).join('')}</ul>`,
+};
+
+/* ----------------  estado  ---------------- */
+let scene = W;
+const player = { x:17.5*T, y:16.5*T, dir:'down', moving:false, anim:0 };
+const SPEED = 92;
+let visitedJac=false, talkedJac=false, fadeA=0;
+const objective=document.getElementById('objective');
+const streetBox=document.getElementById('street');
+let lastStreet='';
+
+/* ----------------  entrada  ---------------- */
+const keys={};
+addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+  if(e.repeat) return;
+  if(modalOpen && (e.key==='Escape'||e.key.toLowerCase()==='e'||e.key==='Enter')) closeModal();
+  else if(!modalOpen && (e.key.toLowerCase()==='e'||e.key==='Enter'||e.key===' ')) tryInteract();
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+const joyEl=document.getElementById('joy'), stickEl=document.getElementById('stick');
+let joy={active:false,id:null,cx:0,cy:0,dx:0,dy:0};
+function joyStart(t){
+  joy.active=true; joy.id=t.identifier??'m'; joy.cx=t.clientX; joy.cy=t.clientY; joy.dx=joy.dy=0;
+  joyEl.style.display='block'; joyEl.style.left=(t.clientX-55)+'px'; joyEl.style.top=(t.clientY-55)+'px';
+  stickEl.style.left='32px'; stickEl.style.top='32px';
+}
+function joyMove(t){
+  let dx=t.clientX-joy.cx, dy=t.clientY-joy.cy;
+  const d=Math.hypot(dx,dy), m=40; if(d>m){dx*=m/d;dy*=m/d;}
+  joy.dx=dx/m; joy.dy=dy/m;
+  stickEl.style.left=(32+dx)+'px'; stickEl.style.top=(32+dy)+'px';
+}
+function joyEnd(){ joy.active=false; joy.dx=joy.dy=0; joyEl.style.display='none'; }
+addEventListener('touchstart',e=>{
+  document.body.classList.add('touch');
+  for(const t of e.changedTouches){
+    if(t.clientX>innerWidth*0.62) continue;
+    if(modalOpen) continue;
+    if(!joy.active) joyStart(t);
+  }
+},{passive:true});
+addEventListener('touchmove',e=>{ for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyMove(t); },{passive:true});
+addEventListener('touchend',e=>{ for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyEnd(); },{passive:true});
+document.getElementById('btnA').addEventListener('touchstart',e=>{e.stopPropagation(); e.preventDefault(); modalOpen?closeModal():tryInteract();},{passive:false});
+document.getElementById('btnA').addEventListener('click',()=>{ modalOpen?closeModal():tryInteract(); });
+
+/* ----------------  modal y escenas  ---------------- */
+const overlay=document.getElementById('overlay'), modalContent=document.getElementById('modalContent');
+let modalOpen=false;
+function openModal(key){
+  modalContent.innerHTML=poiContent[key]();
+  overlay.style.display='block'; modalOpen=true;
+  if(key==='jac'&&!talkedJac){ talkedJac=true; objective.textContent='✔ ¡Listo! Ya sabes cómo pedir tu certificado'; }
+}
+function openPunto(p){
+  modalContent.innerHTML=`<h2>${p.titulo}</h2><p>${p.texto}</p>`+
+    (p.maps?`<a class="tel maps" href="${p.maps}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>`:'');
+  overlay.style.display='block'; modalOpen=true;
+}
+function closeModal(){ overlay.style.display='none'; modalOpen=false; }
+document.getElementById('closeBtn').onclick=closeModal;
+overlay.addEventListener('click',e=>{ if(e.target===overlay) closeModal(); });
+
+function enterJac(){
+  scene=I; player.x=7*T; player.y=8*T+4; player.dir='up'; fadeA=1;
+  if(!visitedJac){ visitedJac=true; objective.textContent='Habla con la secretaria 👩‍💼'; }
+}
+function exitJac(){
+  scene=W; player.x=jacDoor.x; player.y=jacDoor.y+6; player.dir='down'; fadeA=1;
+  if(!talkedJac) objective.textContent='Habla con la secretaria dentro de la JAC';
+}
+document.getElementById('goJac').onclick=()=>{
+  if(!started||modalOpen||scene!==W) return;
+  player.x=jacDoor.x; player.y=jacDoor.y+6; player.dir='up'; fadeA=1;
+};
+
+const promptEl=document.getElementById('prompt');
+let nearPoi=null;
+function tryInteract(){
+  if(!nearPoi) return;
+  if(nearPoi.act==='enter') enterJac();
+  else if(nearPoi.key) openModal(nearPoi.key);
+  else openPunto(nearPoi.punto);
+}
+promptEl.onclick=tryInteract;
+
+let started=false;
+document.getElementById('playBtn').onclick=()=>{ document.getElementById('intro').style.display='none'; started=true; };
+
+/* ----------------  física y cámara  ---------------- */
+function blocked(px,py){
+  const corners=[[px-4,py-2],[px+4,py-2],[px-4,py+3],[px+4,py+3]];
+  for(const [x,y] of corners){
+    if(x<0||y<0||x>=scene.mapw||y>=scene.maph) return true;
+    if(scene.solid[Math.floor(y/T)][Math.floor(x/T)]) return true;
+  }
+  return false;
+}
+let scale=2;
+function resize(){
+  scale=Math.max(2,Math.round(Math.min(innerWidth/400,innerHeight/280)));
+  cvs.width=Math.ceil(innerWidth/scale); cvs.height=Math.ceil(innerHeight/scale);
+}
+addEventListener('resize',resize); resize();
+
+/* ----------------  dibujo: tiles  ---------------- */
+function drawTileAt(S,c,r,x,y,now){
+  switch(S.tile[r][c]){
+    case 0: {
+      ctx.fillStyle=((c+r)%2)?'#6fbf58':'#67b551'; ctx.fillRect(x,y,T,T);
+      const h=hash(c,r);
+      if(h%6===0){ ctx.fillStyle='#579a44'; ctx.fillRect(x+3,y+5,2,3); ctx.fillRect(x+5,y+4,2,4); ctx.fillRect(x+10,y+9,2,3); }
+      if(h%19===0){ ctx.fillStyle='#e8618c'; ctx.fillRect(x+7,y+4,3,3); ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+5,1,1); }
+      if(h%23===0){ ctx.fillStyle='#f5d442'; ctx.fillRect(x+11,y+10,2,2); }
+      break; }
+    case 1:
+      ctx.fillStyle='#565660'; ctx.fillRect(x,y,T,T);
+      if(hash(c,r)%9===0){ ctx.fillStyle='#616169'; ctx.fillRect(x+5,y+7,4,2); }
+      break;
+    case 2:
+      ctx.fillStyle='#cec2a8'; ctx.fillRect(x,y,T,T);
+      ctx.strokeStyle='#b5a88c'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,T-1,T-1); break;
+    case 3:
+      ctx.fillStyle='#7a6a4f'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#8f7c5c'; ctx.fillRect(x,y+3,T,3); ctx.fillRect(x,y+10,T,3);
+      ctx.fillStyle='#46464e'; ctx.fillRect(x+3,y,2,T); ctx.fillRect(x+11,y,2,T); break;
+    case 4:
+      ctx.fillStyle=(c+r)%2?'#dccca4':'#d2c298'; ctx.fillRect(x,y,T,T); break;
+    case 9: {
+      ctx.fillStyle=((c+r)%2)?'#b9bec6':'#b2b7c0'; ctx.fillRect(x,y,T,T);
+      if(c%5===1){ ctx.fillStyle='#8d93a2'; ctx.fillRect(x,y,4,T); }
+      if(hash(c,r)%11===0){ ctx.fillStyle='#4e8a3c'; ctx.fillRect(x+5,y+9,7,4); ctx.fillStyle='#6fae5c'; ctx.fillRect(x+6,y+8,5,2); }
+      break; }
+    case 5: {
+      ctx.fillStyle='#3d7dc4'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#5b96d6';
+      const w=Math.floor(now/400+hash(c,r))%4;
+      ctx.fillRect(x+2+w,y+4,5,2); ctx.fillRect(x+8-w,y+10,5,2); break; }
+    case 7: {
+      ctx.fillStyle='#8aad4e'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='#75923c'; ctx.fillRect(x,y+3,T,2); ctx.fillRect(x,y+9,T,2);
+      if(hash(c,r)%7===0){ ctx.fillStyle='#4e8a3c'; ctx.fillRect(x+6,y+5,3,3); }
+      break; }
+    case 8: {
+      ctx.fillStyle=((c+r)%2)?'#7cc464':'#74ba5c'; ctx.fillRect(x,y,T,T);
+      const h=hash(c,r);
+      if(h%5===0){ ctx.fillStyle='#5fa04c'; ctx.fillRect(x+4,y+6,2,3); ctx.fillRect(x+9,y+10,2,3); }
+      if(h%11===0){ ctx.fillStyle='#e8618c'; ctx.fillRect(x+6,y+4,3,3); }
+      if(h%13===0){ ctx.fillStyle='#fff'; ctx.fillRect(x+11,y+8,2,2); }
+      break; }
+    case 13: { // manzana: fachadas y techos
+      const m=MZ[r][c]-1, pal=m>>2, ph=m&3;
+      const h2=hash(c,r);
+      if(ph===0){ // fachada (frente de casa)
+        const wall = pal===1?'#f0e2c4':['#efe6d2','#e6d5c2','#e2e6ea','#f2ead8'][h2%4];
+        ctx.fillStyle=wall; ctx.fillRect(x,y,T,T);
+        ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x,y+T-2,T,2);
+        ctx.fillStyle='rgba(0,0,0,.07)'; ctx.fillRect(x+T-1,y,1,T);
+        if(h2%4===0){ ctx.fillStyle='#5a3a20'; ctx.fillRect(x+5,y+6,6,10); ctx.fillStyle='#f5d442'; ctx.fillRect(x+9,y+11,1,2); }
+        else { ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+3,y+5,4,5); ctx.fillRect(x+9,y+5,4,5);
+               ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(x+3,y+10,4,1); ctx.fillRect(x+9,y+10,4,1); }
+      } else { // techo
+        const roofs = pal===1?['#cf5f26','#d96b2f','#c65a24']:['#b04a30','#9c4a3a','#b85c3a','#a85030'];
+        ctx.fillStyle=roofs[hash(Math.floor(c/2),Math.floor(r/3))%roofs.length]; ctx.fillRect(x,y,T,T);
+        if(ph===2){ ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(x,y,T,3); }
+        if(ph===1){ ctx.fillStyle='rgba(0,0,0,.16)'; ctx.fillRect(x,y+T-3,T,3); }
+        ctx.fillStyle='rgba(0,0,0,.08)'; ctx.fillRect(x+(c%2?7:3),y,1,T);
       }
+      break; }
+    case 14: { // cancha del salón (base)
+      ctx.fillStyle=((c+r)%2)?'#49a066':'#3f9459'; ctx.fillRect(x,y,T,T);
+      if(hash(c,r)%9===0){ ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(x+4,y+6,5,2); }
+      break; }
+    case 10: {
+      ctx.fillStyle=(r%2)?'#c49a6c':'#ba9060'; ctx.fillRect(x,y,T,T);
+      ctx.fillStyle='rgba(0,0,0,.08)'; ctx.fillRect(x,y+T-1,T,1); break; }
+    case 11:
+      ctx.fillStyle=(r===0)?'#6e5138':'#e8dcc0'; ctx.fillRect(x,y,T,T);
+      if(r===1){ ctx.fillStyle='#d8c9a3'; ctx.fillRect(x,y+T-4,T,4); }
+      break;
+    case 12:
+      ctx.fillStyle='#b3261e'; ctx.fillRect(x,y,T,T);
+      ctx.strokeStyle='#8c1c15'; ctx.strokeRect(x+2.5,y+2.5,T-5,T-5);
+      ctx.fillStyle='#f5d442'; ctx.fillRect(x+6,y+6,4,4); break;
+  }
+}
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/JAC-Gran-Colombia.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/JAC-Gran-Colombia.data.unityweb",
-        frameworkUrl: buildUrl + "/JAC-Gran-Colombia.framework.js.unityweb",
-        codeUrl: buildUrl + "/JAC-Gran-Colombia.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Willow",
-        productVersion: "0.1.0",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
+/* ----------------  dibujo: edificios  ---------------- */
+const housePal=[['#e8d3ae','#a33b2e'],['#d4dbe4','#456a8c'],['#ecdcbc','#7a4a2a'],['#ddc6d4','#8c4a6e']];
+function roofBand(x,y,w,h,col,hi){
+  ctx.fillStyle=col; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=hi; ctx.fillRect(x,y,w,3);
+  ctx.fillStyle='rgba(0,0,0,.14)'; for(let i=4;i<w;i+=7) ctx.fillRect(x+i,y,1,h);
+  ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(x,y+h-2,w,2);
+}
+function label(cx,txt,y){
+  ctx.font='7px monospace'; ctx.textAlign='center';
+  const w=ctx.measureText(txt).width;
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(cx-w/2-3,y-8,w+6,10);
+  ctx.fillStyle='#fff'; ctx.fillText(txt,cx,y); ctx.textAlign='left';
+}
+function drawBuilding(b,cam,now){
+  const x=b.c*T-cam.x, y=b.r*T-cam.y, Wd=b.w*T, H=b.h*T;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+3,y+H-2,Wd,4);
+  if(b.type==='house'){
+    const [wall,roof]=housePal[b.v%4];
+    ctx.fillStyle=wall; ctx.fillRect(x,y+12,Wd,H-12);
+    roofBand(x-2,y,Wd+4,14,roof,'rgba(255,255,255,.25)');
+    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+Wd/2-4,y+H-14,8,14);
+    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+5,y+18,8,8); ctx.fillRect(x+Wd-13,y+18,8,8);
+    ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.strokeRect(x+5.5,y+18.5,7,7); ctx.strokeRect(x+Wd-12.5,y+18.5,7,7);
+  }
+  else if(b.type==='estacion'){
+    ctx.fillStyle='#b06a3a'; ctx.fillRect(x,y+10,Wd,H-10);
+    roofBand(x-2,y,Wd+4,12,'#8c3b2a','#a85440');
+    ctx.fillStyle='#3a2a18'; ctx.fillRect(x+Wd/2-4,y+H-11,8,11);
+    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+5,y+16,7,7); ctx.fillRect(x+Wd-12,y+16,7,7);
+  }
+  else if(b.type==='virgen'){
+    ctx.fillStyle='#f4f2ec'; ctx.fillRect(x+4,y+8,24,H-8);            // nicho
+    ctx.fillStyle='#3a6ea8'; ctx.fillRect(x+8,y+12,16,15);            // interior azul
+    ctx.fillStyle='#7ab0d8'; ctx.fillRect(x+13,y+15,6,9);             // manto
+    ctx.fillStyle='#e8c48c'; ctx.fillRect(x+14,y+13,4,3);             // rostro
+    ctx.fillStyle='#f5d442'; ctx.fillRect(x+13,y+12,6,1);             // aureola
+    ctx.fillStyle='#d8d4c8'; ctx.fillRect(x+2,y+4,28,5);              // techito
+    ctx.fillStyle='#6a5138'; ctx.fillRect(x+15,y-2,2,6); ctx.fillRect(x+13,y,6,2);  // cruz
+    ctx.fillStyle='#e8618c'; ctx.fillRect(x+7,y+H-3,4,3); ctx.fillRect(x+21,y+H-3,4,3); // flores
+  }
+  else if(b.type==='cultural'){
+    ctx.fillStyle='#ddd2b0'; ctx.fillRect(x,y+24,Wd,H-24);
+    ctx.fillStyle='rgba(0,0,0,.10)'; for(let i=0;i<Wd;i+=10) ctx.fillRect(x+i,y+24,1,H-24);
+    ctx.fillStyle='#223244'; ctx.fillRect(x+34,y+34,74,H-34);
+    ctx.fillStyle='#3d5a7a'; for(let i=0;i<70;i+=8) ctx.fillRect(x+37+i,y+36,3,H-38);
+    ctx.fillStyle='#5b7a9c'; ctx.fillRect(x+40,y+38,2,H-44);
+    ctx.fillStyle='#f4efe2'; ctx.fillRect(x+114,y+38,52,18);
+    const dots=['#e84a8f','#f5a623','#48a848','#3aa0d8','#e0512e'];
+    dots.forEach((d,i)=>{ ctx.fillStyle=d; ctx.fillRect(x+118+i*9,y+42,5,5); });
+    ctx.fillStyle='#6a6152'; ctx.fillRect(x+118,y+50,44,2);
+    ctx.fillStyle='#101820'; ctx.fillRect(x+Wd/2-12,y+H-22,24,22);
+    ctx.fillStyle='#f5d442'; ctx.fillRect(x+Wd/2-1,y+H-13,2,5);
+    ctx.fillStyle='rgba(0,0,0,.22)'; ctx.fillRect(x-6,y+20,Wd+12,6);
+    ctx.fillStyle='#eceade'; ctx.fillRect(x-8,y,Wd+16,20);
+    ctx.fillStyle='#f6f4ea'; ctx.fillRect(x-8,y,Wd+16,4);
+    ctx.fillStyle='#c9c6b4'; ctx.fillRect(x-8,y+18,Wd+16,2);
+    label(x+Wd/2,'CENTRO CULTURAL',y-6);
+  }
+  else if(b.type==='jac'){
+    const LR=Math.round(Wd*0.24), RR=Math.round(Wd*0.4);
+    ctx.fillStyle='#f2f0ea'; ctx.fillRect(x,y+6,Wd,31);
+    ctx.fillStyle='#d84848'; ctx.fillRect(x,y+6,LR,31);
+    ctx.fillStyle='#cf3e3e'; ctx.fillRect(x+Wd-RR,y+6,RR,31);
+    ctx.fillStyle='#16181c';
+    const cw=Wd-LR-RR;
+    for(let i=0;i<3;i++) ctx.fillRect(x+LR+3+i*Math.max(6,Math.floor((cw-6)/3)),y+12,3,19);
+    ctx.fillRect(x+Wd-RR+3,y+10,RR-6,15);
+    ctx.fillStyle='#4a5560'; ctx.fillRect(x+Wd-RR+4,y+14,RR-8,1); ctx.fillRect(x+Wd-RR+4,y+19,RR-8,1);
+    ctx.fillStyle='#16181c'; ctx.fillRect(x+3,y+13,LR-6,12);
+    ctx.fillStyle='#d8d4c8'; ctx.fillRect(x-2,y+37,Wd+4,3);
+    ctx.fillStyle='#f4f2ec'; ctx.fillRect(x,y+40,Wd,H-40);
+    ctx.fillStyle='#14161a'; ctx.fillRect(x+Wd/2-11,y+44,22,H-44);
+    ctx.fillStyle='#3c4048'; for(let i=0;i<20;i+=4) ctx.fillRect(x+Wd/2-9+i,y+46,2,H-48);
+    ctx.fillStyle='#2e6e4e'; ctx.fillRect(x+Wd/2+13,y+46,10,9);
+    ctx.fillStyle='#fff'; ctx.fillRect(x+Wd/2+15,y+48,3,3); ctx.fillRect(x+Wd/2+19,y+49,3,3);
+    ctx.fillStyle='#f8f8f4'; ctx.fillRect(x+4,y+45,11,10);
+    ctx.fillStyle='#999'; ctx.fillRect(x+6,y+47,7,1); ctx.fillRect(x+6,y+49,7,1); ctx.fillRect(x+6,y+51,5,1);
+    ctx.fillStyle='#8a8a88'; ctx.fillRect(x-2,y,Wd+4,6);
+    ctx.fillStyle='#b0b0ae'; ctx.fillRect(x-2,y,Wd+4,2);
+    ctx.fillStyle='#fff'; ctx.fillRect(x+Wd/2-13,y+38,26,7);
+    ctx.fillStyle='#b3261e'; ctx.font='6px monospace'; ctx.textAlign='center';
+    ctx.fillText('J A C',x+Wd/2,y+44); ctx.textAlign='left';
+    const fx=x-8, fy=y+H-36;
+    ctx.fillStyle='#888'; ctx.fillRect(fx,fy,2,36);
+    const wv=Math.sin(now/300)*1.5;
+    ctx.fillStyle='#fcd116'; ctx.fillRect(fx+2,fy+wv,16,5);
+    ctx.fillStyle='#003893'; ctx.fillRect(fx+2,fy+5+wv,16,2.5);
+    ctx.fillStyle='#ce1126'; ctx.fillRect(fx+2,fy+7.5+wv,16,2.5);
+    label(x+Wd/2,'SALÓN COMUNITARIO',y-4);
+    if(!visitedJac){
+      const by=y-16+Math.sin(now/250)*3;
+      ctx.fillStyle='#f5d442';
+      ctx.beginPath(); ctx.moveTo(x+Wd/2-6,by); ctx.lineTo(x+Wd/2+6,by); ctx.lineTo(x+Wd/2,by+8); ctx.fill();
+    }
+  }
+}
 
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
+/* ----------------  dibujo: sprites  ---------------- */
+function drawTree(tr,cam){
+  const x=tr.c*T-cam.x, y=tr.r*T-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+12,12,4);
+  ctx.fillStyle='#6e4a2a'; ctx.fillRect(x+6,y+8,4,8);
+  ctx.fillStyle='#3f7a30'; ctx.fillRect(x+1,y-6,14,12);
+  ctx.fillStyle='#4e9440'; ctx.fillRect(x+3,y-4,10,8); ctx.fillRect(x-1,y,4,6); ctx.fillRect(x+13,y,4,6);
+  ctx.fillStyle='#5fae4e'; ctx.fillRect(x+5,y-2,6,4);
+}
+function drawCow(cam){
+  const x=cow.x-cam.x, y=cow.y-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x-7,y+2,16,4);
+  ctx.fillStyle='#f5f0e8'; ctx.fillRect(x-7,y-8,14,9);
+  ctx.fillStyle='#3a3a3a'; ctx.fillRect(x-4,y-7,4,4); ctx.fillRect(x+2,y-4,3,4);
+  ctx.fillStyle='#f5f0e8'; ctx.fillRect(x+5,y-11,6,7);
+  ctx.fillStyle='#222'; ctx.fillRect(x+8,y-9,1,2);
+  ctx.fillStyle='#e8a0b4'; ctx.fillRect(x+8,y-6,3,2);
+  ctx.fillStyle='#3a3a3a';
+  ctx.fillRect(x-6,y+1,2,3); ctx.fillRect(x-1,y+1,2,3); ctx.fillRect(x+4,y+1,2,3);
+}
+function drawDog(cam,now){
+  const x=dog.x-cam.x, y=dog.y-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x-5,y+1,12,3);
+  ctx.fillStyle='#8a6242'; ctx.fillRect(x-5,y-5,10,6);              // cuerpo
+  ctx.fillStyle='#8a6242'; ctx.fillRect(x+4,y-8,5,5);               // cabeza
+  ctx.fillStyle='#6e4a2e'; ctx.fillRect(x+4,y-10,2,3);              // oreja
+  ctx.fillStyle='#222'; ctx.fillRect(x+7,y-7,1,1);
+  const wag=Math.sin(now/120)>0?1:-1;                                // cola
+  ctx.fillStyle='#6e4a2e'; ctx.fillRect(x-7,y-6+wag,3,2);
+  ctx.fillStyle='#6e4a2e'; ctx.fillRect(x-4,y+1,2,2); ctx.fillRect(x+1,y+1,2,2);
+}
+function drawCar(car,cam){
+  const x=car.x-cam.x, y=car.y-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(x-6,y-9,12,20);
+  ctx.fillStyle=car.col; ctx.fillRect(x-5,y-10,10,20);
+  ctx.fillStyle='#222'; ctx.fillRect(x-6,y-8,2,5); ctx.fillRect(x+4,y-8,2,5); ctx.fillRect(x-6,y+4,2,5); ctx.fillRect(x+4,y+4,2,5);
+  ctx.fillStyle='#bde0f0'; ctx.fillRect(x-3,car.v>0?y-7:y+3,6,4);
+}
+function drawTrain(cam){
+  const cars3=[{dy:0,col:'#2e5d3a',loco:true},{dy:-52,col:'#8c2f2f'},{dy:-104,col:'#8c2f2f'}];
+  for(const c of cars3){
+    const wy=train.y+c.dy, y=wy-cam.y;
+    if(y<-80||y>cvs.height+80) continue;
+    const x=railX(wy)-10-cam.x;
+    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x+2,y+2,20,46);
+    ctx.fillStyle=c.col; ctx.fillRect(x,y,20,46);
+    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(x,y,20,4);
+    ctx.fillStyle='#f5d442'; ctx.fillRect(x,y+(c.loco?38:8),20,4);
+    if(c.loco){ ctx.fillStyle='#222'; ctx.fillRect(x+6,y+4,8,8); }
+    else { ctx.fillStyle='#bde0f0'; ctx.fillRect(x+4,y+16,5,6); ctx.fillRect(x+11,y+16,5,6); }
+  }
+}
+function drawPerson(px,py,dir,step,pal,cam){
+  const x=Math.round(px-cam.x), y=Math.round(py-cam.y);
+  const [shirt,skin,hair]=pal;
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x-5,y+1,10,4);
+  ctx.fillStyle='#28405e';
+  ctx.fillRect(x-4,y-6+(step?1:0),3,7-(step?1:0)); ctx.fillRect(x+1,y-6+(step?0:1),3,7-(step?0:1));
+  ctx.fillStyle=shirt; ctx.fillRect(x-5,y-14,10,9);
+  ctx.fillStyle=skin; ctx.fillRect(x-4,y-21,8,7);
+  ctx.fillStyle=hair; ctx.fillRect(x-4,y-23,8,3);
+  if(dir==='up') ctx.fillRect(x-4,y-21,8,4);
+  if(dir!=='up'){ ctx.fillStyle='#222';
+    if(dir!=='right') ctx.fillRect(x-3,y-18,2,2);
+    if(dir!=='left')  ctx.fillRect(x+1,y-18,2,2); }
+  ctx.fillStyle=skin; ctx.fillRect(x-6,y-13+(step?2:0),2,5); ctx.fillRect(x+4,y-13+(step?0:2),2,5);
+}
+function drawInterior(cam){
+  let x=2*T-cam.x, y=1*T-cam.y;
+  ctx.fillStyle='#888'; ctx.fillRect(x+6,y-6,2,20);
+  ctx.fillStyle='#fcd116'; ctx.fillRect(x+8,y-6,14,5);
+  ctx.fillStyle='#003893'; ctx.fillRect(x+8,y-1,14,2.5);
+  ctx.fillStyle='#ce1126'; ctx.fillRect(x+8,y+1.5,14,2.5);
+  x=9*T-cam.x; y=0.6*T-cam.y;
+  ctx.fillStyle='#6e4a2a'; ctx.fillRect(x,y,3*T-6,20);
+  ctx.fillStyle='#e8dcc0'; ctx.fillRect(x+3,y+3,3*T-12,14);
+  ctx.fillStyle='#b3261e'; ctx.fillRect(x+6,y+5,8,4);
+  ctx.fillStyle='#155e2b'; ctx.fillRect(x+18,y+7,10,5);
+  ctx.fillStyle='#14203a'; ctx.fillRect(x+30,y+5,7,7);
+  x=4*T-cam.x;
+  ctx.fillStyle='#a8d8ea'; ctx.fillRect(x,0.7*T-cam.y,24,14);
+  ctx.strokeStyle='#6e5138'; ctx.strokeRect(x+.5,0.7*T-cam.y+.5,23,13);
+  x=5*T-cam.x; y=3*T-cam.y;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+14,4*T,4);
+  ctx.fillStyle='#8c6239'; ctx.fillRect(x,y,4*T,14);
+  ctx.fillStyle='#a87c4f'; ctx.fillRect(x,y,4*T,4);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+2,10,6);
+  ctx.fillStyle='#14203a'; ctx.fillRect(x+44,y+1,12,7);
+  for(const [cc,rr] of [[3,6],[4,6],[9,6],[10,6]]){
+    const sx=cc*T-cam.x, sy=rr*T-cam.y;
+    ctx.fillStyle='#8c6239'; ctx.fillRect(sx+3,sy+2,10,10);
+    ctx.fillStyle='#6e4a2a'; ctx.fillRect(sx+3,sy,10,4);
+  }
+  for(const [cc,rr] of [[1,2],[12,2],[1,7],[12,7]]){
+    const sx=cc*T-cam.x, sy=rr*T-cam.y;
+    ctx.fillStyle='#b3502e'; ctx.fillRect(sx+4,sy+6,8,8);
+    ctx.fillStyle='#3f7a30'; ctx.fillRect(sx+2,sy-2,12,9);
+    ctx.fillStyle='#5fae4e'; ctx.fillRect(sx+5,sy,6,5);
+  }
+}
 
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
+/* ----------------  bucle principal  ---------------- */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
+  if(started&&!modalOpen){
+    let dx=0,dy=0;
+    if(keys['w']||keys['arrowup'])dy-=1; if(keys['s']||keys['arrowdown'])dy+=1;
+    if(keys['a']||keys['arrowleft'])dx-=1; if(keys['d']||keys['arrowright'])dx+=1;
+    if(joy.active&&Math.hypot(joy.dx,joy.dy)>.25){ dx=joy.dx; dy=joy.dy; }
+    const len=Math.hypot(dx,dy);
+    player.moving=len>0.01;
+    if(player.moving){
+      dx/=len; dy/=len;
+      if(Math.abs(dx)>Math.abs(dy)) player.dir=dx>0?'right':'left'; else player.dir=dy>0?'down':'up';
+      const nx=player.x+dx*SPEED*dt, ny=player.y+dy*SPEED*dt;
+      if(!blocked(nx,player.y)) player.x=nx;
+      if(!blocked(player.x,ny)) player.y=ny;
+      player.anim+=dt*2;
+    }
+    if(scene===I && I.tile[Math.floor((player.y+3)/T)]?.[Math.floor(player.x/T)]===12) exitJac();
+  }
+  if(scene===W){
+    for(const car of cars){ car.y+=car.v*dt; if(car.y>W.maph+30)car.y=-30; if(car.y<-30)car.y=W.maph+30; }
+    train.y+=train.v*dt; if(train.y>W.maph+300) train.y=-400-Math.random()*4000;
+  }
 
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
+  const st = scene===I ? 'Salón Comunitario · JAC' : (streetAt(player.x,player.y) || 'Barrio Gran Colombia');
+  if(st!==lastStreet){ lastStreet=st; streetBox.textContent='📍 '+st; }
 
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
+  nearPoi=null;
+  if(started&&!modalOpen){
+    for(const p of scene.pois) if(Math.hypot(player.x-p.x,player.y-p.y)<p.r){ nearPoi=p; break; }
+  }
+  if(nearPoi){ promptEl.innerHTML=`<b>[E]</b> ${nearPoi.label}`; promptEl.style.display='block'; }
+  else promptEl.style.display='none';
 
+  const cam={ x:Math.round(Math.min(Math.max(player.x-cvs.width/2,0),Math.max(0,scene.mapw-cvs.width))),
+              y:Math.round(Math.min(Math.max(player.y-cvs.height/2,0),Math.max(0,scene.maph-cvs.height))) };
+  if(scene.mapw<cvs.width)  cam.x=-Math.round((cvs.width-scene.mapw)/2);
+  if(scene.maph<cvs.height) cam.y=-Math.round((cvs.height-scene.maph)/2);
 
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+  ctx.fillStyle= scene===W ? '#223622' : '#0c0c10';
+  ctx.fillRect(0,0,cvs.width,cvs.height);
+  const c0=Math.max(0,Math.floor(cam.x/T)), c1=Math.min(scene.cols-1,Math.ceil((cam.x+cvs.width)/T));
+  const r0=Math.max(0,Math.floor(cam.y/T)), r1=Math.min(scene.rows-1,Math.ceil((cam.y+cvs.height)/T));
+  for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++) drawTileAt(scene,c,r,c*T-cam.x,r*T-cam.y,now);
+
+  if(scene===W){
+    // nombres de calle
+    ctx.font='7px monospace'; ctx.textAlign='center';
+    for(const L of streetLabels){
+      const lx=L.x-cam.x, ly=L.y-cam.y;
+      if(lx<-80||lx>cvs.width+80||ly<-40||ly>cvs.height+40) continue;
+      ctx.save(); ctx.translate(lx,ly); ctx.rotate(L.ang);
+      ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillText(L.n,0,2);
+      ctx.restore();
+    }
+    ctx.textAlign='left';
+    // límite del territorio JAC
+    ctx.save();
+    ctx.strokeStyle='rgba(244,208,32,.85)'; ctx.lineWidth=2.5; ctx.setLineDash([7,5]);
+    for(const Lm of LIMITS){
+      ctx.beginPath();
+      Lm.forEach((p,i)=> i?ctx.lineTo(p[0]*T-cam.x,p[1]*T-cam.y):ctx.moveTo(p[0]*T-cam.x,p[1]*T-cam.y));
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.textAlign='center'; ctx.font='7px monospace';
+    ctx.save(); ctx.translate(23.2*T-cam.x,45*T-cam.y); ctx.rotate(Math.PI/2);
+    ctx.fillStyle='rgba(244,208,32,.95)'; ctx.fillText('LÍMITE JAC GRAN COLOMBIA',0,0); ctx.restore();
+    ctx.save(); ctx.translate(114*T-cam.x,30*T-cam.y); ctx.rotate(1.25);
+    ctx.fillStyle='rgba(220,240,255,.9)'; ctx.fillText('RÍO BOGOTÁ',0,0); ctx.restore();
+    ctx.textAlign='left';
+    // líneas de la cancha del salón
+    {
+      const cx=80*T-cam.x, cy=34*T-cam.y, cwd=4*T, chg=5*T;
+      if(cx>-cwd&&cx<cvs.width&&cy>-chg&&cy<cvs.height){
+        ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=1;
+        ctx.strokeRect(cx+2.5,cy+2.5,cwd-5,chg-5);
+        ctx.beginPath(); ctx.moveTo(cx+3,cy+chg/2+.5); ctx.lineTo(cx+cwd-3,cy+chg/2+.5); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx+cwd/2,cy+chg/2,6,0,7); ctx.stroke();
+        ctx.fillStyle='#e8e8e8'; ctx.fillRect(cx+cwd/2-8,cy+1,16,3); ctx.fillRect(cx+cwd/2-8,cy+chg-4,16,3);
       }
+    }
+    // letreros fijos
+    for(const L of LETREROS) label(L.x*T-cam.x, L.t, L.y*T-cam.y);
+    // eje de la variante
+    ctx.fillStyle='#e8d44d';
+    for(let y=(-(now/18)%32);y<cvs.height+32;y+=32) ctx.fillRect(96.9*T-cam.x,y,2,14);
+    for(const car of cars) drawCar(car,cam);
+    drawTrain(cam);
 
-      document.querySelector("#unity-loading-bar").style.display = "block";
+    const sprites=[];
+    for(const b of B)      sprites.push({y:(b.r+b.h)*T, d:()=>drawBuilding(b,cam,now)});
+    for(const tr of trees) sprites.push({y:(tr.r+1)*T,  d:()=>drawTree(tr,cam)});
+    for(const n of npcs)   sprites.push({y:n.y,         d:()=>drawPerson(n.x,n.y,n.dir,0,n.pal,cam)});
+    sprites.push({y:cow.y, d:()=>drawCow(cam)});
+    sprites.push({y:dog.y, d:()=>drawDog(cam,now)});
+    sprites.push({y:player.y, d:()=>drawPerson(player.x,player.y,player.dir,player.moving?Math.floor(player.anim*8)%2:0,['#c62828','#e8b48c','#3a2a18'],cam)});
+    sprites.sort((a,b)=>a.y-b.y);
+    for(const s of sprites) s.d();
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((unityInstance) => {
-                document.querySelector("#unity-loading-bar").style.display = "none";
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
+    if(started&&!visitedJac&&!modalOpen){
+      const d=Math.hypot(jacDoor.x-player.x,jacDoor.y-player.y);
+      if(d>140){
+        const a=Math.atan2(jacDoor.y-player.y,jacDoor.x-player.x);
+        const ax=player.x-cam.x+Math.cos(a)*26, ay=player.y-cam.y-10+Math.sin(a)*26;
+        ctx.save(); ctx.translate(ax,ay); ctx.rotate(a);
+        ctx.fillStyle='#f5d442'; ctx.beginPath(); ctx.moveTo(6,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.fill();
+        ctx.strokeStyle='#4a3a05'; ctx.stroke(); ctx.restore();
+      }
+    }
+  } else {
+    drawInterior(cam);
+    const sprites=[
+      {y:3.2*T, d:()=>drawPerson(7*T,3*T-2,'down',0,['#155e2b','#e8b48c','#3a2a18'],cam)},
+      {y:player.y, d:()=>drawPerson(player.x,player.y,player.dir,player.moving?Math.floor(player.anim*8)%2:0,['#c62828','#e8b48c','#3a2a18'],cam)},
+    ];
+    sprites.sort((a,b)=>a.y-b.y);
+    for(const s of sprites) s.d();
+  }
 
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
-    </script>
-  </body>
+  if(fadeA>0){ fadeA=Math.max(0,fadeA-dt*2.5); ctx.fillStyle=`rgba(0,0,0,${fadeA})`; ctx.fillRect(0,0,cvs.width,cvs.height); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
 </html>
