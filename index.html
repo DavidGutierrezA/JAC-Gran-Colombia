@@ -1,788 +1,133 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>JAC Barrio Gran Colombia — Cajicá</title>
-<meta name="description" content="Junta de Acción Comunal del Barrio Gran Colombia, Cajicá. Recorre el barrio, entra al Salón Comunal y pide tu certificado de residencia.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#141c14; touch-action:none;
-    font-family:'Press Start 2P', monospace; }
-  #game { position:absolute; inset:0; width:100vw; height:100vh; image-rendering:pixelated; image-rendering:crisp-edges; }
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | Willow</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">Willow</div>
+      </div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
 
-  #hud { position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between;
-    pointer-events:none; z-index:5; gap:8px; flex-wrap:wrap; }
-  .hudbox { background:rgba(20,26,20,.82); border:2px solid #f5d442; color:#fff; padding:7px 10px;
-    font-size:9px; line-height:1.6; border-radius:4px; box-shadow:2px 2px 0 rgba(0,0,0,.5); }
-  #street { border-color:#7fb3e8; color:#bfe0ff; }
-  #objective { color:#f5d442; }
-
-  #prompt { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
-    background:#14203a; border:2px solid #fff; color:#fff; font-size:10px; padding:10px 14px;
-    border-radius:4px; display:none; z-index:6; cursor:pointer; box-shadow:3px 3px 0 rgba(0,0,0,.5);
-    animation:bump 1s infinite; white-space:nowrap; max-width:92vw; }
-  @keyframes bump { 50% { transform:translateX(-50%) translateY(-3px);} }
-  #prompt b { color:#f5d442; }
-
-  #overlay { position:absolute; inset:0; background:rgba(0,0,0,.55); display:none; z-index:10; }
-  #modal { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    width:min(92vw,460px); max-height:86vh; overflow-y:auto; background:#f8f0dc; color:#2b2318;
-    border:4px solid #2b2318; border-radius:6px; box-shadow:6px 6px 0 rgba(0,0,0,.55); padding:18px; }
-  #modal h2 { font-size:12px; color:#b3261e; margin-bottom:12px; line-height:1.6; }
-  #modal h3 { font-size:9px; color:#155e2b; margin:14px 0 6px; }
-  #modal p, #modal li { font-size:8px; line-height:1.9; }
-  #modal ul { list-style:none; }
-  #modal li::before { content:"► "; color:#b3261e; }
-  #modal .tel { display:block; background:#155e2b; color:#fff; text-decoration:none; text-align:center;
-    font-size:10px; padding:12px; margin:10px 0 6px; border-radius:4px; border:2px solid #0c3a1a;
-    box-shadow:0 3px 0 #0c3a1a; }
-  #modal .tel.wa { background:#1f7a33; }
-  #modal .tel.maps { background:#1a5fb4; border-color:#0d3a72; box-shadow:0 3px 0 #0d3a72; }
-  #modal .tel:active { transform:translateY(2px); box-shadow:none; }
-  #closeBtn { margin-top:14px; width:100%; background:#b3261e; color:#fff; border:2px solid #6e120d;
-    font-family:inherit; font-size:9px; padding:10px; border-radius:4px; cursor:pointer; box-shadow:0 3px 0 #6e120d; }
-  #closeBtn:active { transform:translateY(2px); box-shadow:none; }
-  .flagline { height:6px; margin-bottom:12px; background:linear-gradient(to bottom,#fcd116 0 50%,#003893 50% 75%,#ce1126 75% 100%); }
-
-  #intro { position:absolute; inset:0; z-index:20; background:rgba(10,16,10,.88);
-    display:flex; align-items:center; justify-content:center; }
-  #introCard { width:min(92vw,470px); background:#f8f0dc; color:#2b2318; border:4px solid #2b2318;
-    border-radius:6px; padding:22px; text-align:center; box-shadow:6px 6px 0 rgba(0,0,0,.6); }
-  #introCard h1 { font-size:14px; color:#b3261e; line-height:1.7; margin-bottom:4px; }
-  #introCard h2 { font-size:9px; color:#155e2b; margin-bottom:14px; }
-  #introCard p { font-size:8px; line-height:1.9; margin-bottom:8px; }
-  #playBtn { font-family:inherit; font-size:11px; background:#155e2b; color:#fff; border:2px solid #0c3a1a;
-    padding:14px 26px; border-radius:4px; cursor:pointer; margin-top:10px; box-shadow:0 4px 0 #0c3a1a; }
-  #playBtn:active { transform:translateY(3px); box-shadow:none; }
-
-  #joy { position:absolute; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.12);
-    border:2px solid rgba(255,255,255,.35); display:none; z-index:7; pointer-events:none; }
-  #stick { position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.45);
-    left:32px; top:32px; }
-  #btnA { position:absolute; right:22px; bottom:26px; width:66px; height:66px; border-radius:50%;
-    background:rgba(245,212,66,.85); border:3px solid #a8861c; color:#4a3a05; font-family:inherit;
-    font-size:16px; display:none; z-index:7; box-shadow:0 4px 0 #a8861c; }
-  #btnA:active { transform:translateY(3px); box-shadow:none; }
-  body.touch #btnA { display:block; }
-</style>
-</head>
-<body>
-<canvas id="game"></canvas>
-
-<div id="hud">
-  <div class="hudbox" id="street">📍 Barrio Gran Colombia</div>
-  <div class="hudbox" id="objective">Objetivo: llega al Salón Comunal (JAC) ➜</div>
-</div>
-
-<div id="prompt"></div>
-<div id="joy"><div id="stick"></div></div>
-<button id="btnA">A</button>
-
-<div id="overlay">
-  <div id="modal">
-    <div id="modalContent"></div>
-    <button id="closeBtn">CERRAR ✕</button>
-  </div>
-</div>
-
-<div id="intro">
-  <div id="introCard">
-    <h1>BARRIO<br>GRAN COLOMBIA</h1>
-    <h2>Junta de Acción Comunal · Cajicá</h2>
-    <div class="flagline"></div>
-    <p>Recorre la <b>Calle 1</b> desde el <b>Centro Cultural</b>, baja por la <b>Carrera 7 Este</b> y <b>entra al Salón Comunal</b> para pedir tu certificado de residencia.</p>
-    <p>🖥 PC: <b>WASD / flechas</b> para caminar, <b>E</b> para interactuar.<br>📱 Celular: <b>joystick</b> (toca la pantalla) y botón <b>A</b>.</p>
-    <button id="playBtn">▶ ENTRAR AL BARRIO</button>
-  </div>
-</div>
-
-<script>
-"use strict";
-/* =====================================================================
-   ⚙️  CONFIGURACIÓN — EDITA SOLO ESTA SECCIÓN  ⚙️
-   ===================================================================== */
-const CONFIG = {
-  telefono:  "310 000 0000",        // ← CAMBIAR: número para certificados
-  whatsapp:  "573100000000",        // ← CAMBIAR: solo dígitos, con 57 adelante
-  horario:   "Sábados de 9:00 a.m. a 12:00 m.",   // ← CAMBIAR si es otro
-  requisitos: [
-    "Nombre completo y cédula",
-    "Dirección exacta de la vivienda",
-    "Tiempo de residencia en el barrio",
-    "Número de contacto",
-  ],
-  mensaje: "¡Bienvenido al Salón Comunal! La JAC del Barrio Gran Colombia trabaja por el bienestar de todos los vecinos.",
-  cartelera: [
-    "Asamblea general: primer domingo del mes",
-    "Actividades comunitarias: pregunta en la oficina",
-    "¡Mantén limpio el barrio!",
-  ],
-  // Enlaces a Google Maps (puedes pegar aquí los enlaces exactos de "Compartir")
-  mapsJac:      "https://www.google.com/maps/search/?api=1&query=JAC+GRAN+COLOMBIA+Cajic%C3%A1",
-  mapsCultural: "https://www.google.com/maps/search/?api=1&query=Centro+Cultural+y+de+Convenciones+de+Cajic%C3%A1",
-};
-/* ===================================================================== */
-
-const T = 16;
-const cvs = document.getElementById('game'), ctx = cvs.getContext('2d');
-const hash = (c,r)=>((c*73856093)^(r*19349663))>>>0;
-
-/* =====================================================================
-   MUNDO — trazado tomado del mapa real de la zona (imagen satelital):
-   Calle 1 diagonal ONO→ESE desde el Centro Cultural, Carreras 2 / 3A /
-   5 / 5B / 6 / 7 Este, Calle 3A al norte, Calle 1A, corredor sur
-   (Calles 1C / 1B / 1A / 1 Sur), riel del tren al occidente, cultivos
-   al suroccidente y la JAC sobre la Carrera 7 Este.
-   ===================================================================== */
-const W = { cols:100, rows:70 };
-W.mapw=W.cols*T; W.maph=W.rows*T;
-W.tile  = Array.from({length:W.rows},()=>Array(W.cols).fill(0));
-W.solid = Array.from({length:W.rows},()=>Array(W.cols).fill(false));
-
-// tiles: 0 pasto 1 vía 2 andén 3 riel 4 plaza 5 agua 7 cultivo 8 pasto de parque
-const STREETS = [
-  {n:'Calle 1',          w:1.5,  p:[[2,20],[40,27],[66,33],[86,37],[94,38]]},
-  {n:'Calle 3A',         w:1.1,  p:[[28,1],[52,3],[80,13],[92,15]]},
-  {n:'Calle 1A',         w:1.1,  p:[[56,44],[88,46]]},
-  {n:'Calle 1 Sur',      w:1.1,  p:[[76,60],[99,59]]},
-  {n:'Calle 1A Sur',     w:1.1,  p:[[60,61],[76,60]]},
-  {n:'Calle 1B Sur',     w:1.1,  p:[[44,62],[60,61]]},
-  {n:'Calle 1C Sur',     w:1.1,  p:[[20,63],[44,62]]},
-  {n:'Carrera 2 Este',   w:1.1,  p:[[26,7],[26,35]]},
-  {n:'Carrera 3A Este',  w:1.1,  p:[[30,25],[30,47]]},
-  {n:'Carrera 5 Este',   w:1.1,  p:[[56,31],[56,61]]},
-  {n:'Carrera 5B Este',  w:1.1,  p:[[63,32],[63,61]]},
-  {n:'Carrera 6 Este',   w:1.1,  p:[[80,7],[80,36]]},
-  {n:'Carrera 7 Este',   w:1.25, p:[[86,37],[85,70]]},
-  {n:'Variante de Cajicá', w:2,  p:[[97,0],[97,70]]},
-];
-function paintPoly(S,pts,w,t){
-  for(let i=0;i<pts.length-1;i++){
-    const [x0,y0]=pts[i],[x1,y1]=pts[i+1];
-    const d=Math.hypot(x1-x0,y1-y0), steps=Math.max(1,Math.ceil(d*3));
-    for(let s=0;s<=steps;s++){
-      const x=x0+(x1-x0)*s/steps, y=y0+(y1-y0)*s/steps;
-      for(let rr=Math.floor(y-w);rr<=Math.ceil(y+w);rr++)
-        for(let cc=Math.floor(x-w);cc<=Math.ceil(x+w);cc++)
-          if(rr>=0&&rr<S.rows&&cc>=0&&cc<S.cols && (cc-x)*(cc-x)+(rr-y)*(rr-y)<=w*w) S.tile[rr][cc]=t;
-    }
-  }
-}
-function zoneFill(x0,y0,x1,y1,t){ for(let r=y0;r<=y1;r++)for(let c=x0;c<=x1;c++) if(r>=0&&r<W.rows&&c>=0&&c<W.cols) W.tile[r][c]=t; }
-
-// 1) terreno: parque, laguito, cultivos, plazas, andén de estación
-zoneFill(5,24,12,31,8);           // parque
-zoneFill(6,26,8,28,5);            // laguito
-zoneFill(0,38,44,69,7);           // cultivos suroccidente
-zoneFill(13,15,22,18,4);          // plaza del Centro Cultural
-zoneFill(79,52,82,52,4);          // atrio de la JAC
-zoneFill(9,2,9,6,4);              // andén de la antigua estación
-// 2) riel del tren (diagonal occidente)
-paintPoly(W,[[8,0],[4,30],[4,70]],0.9,3);
-// 3) calles (sobrescriben el riel en el cruce de la Calle 1)
-for(const s of STREETS) paintPoly(W,s.p,s.w,1);
-// 4) andenes: pasto pegado a una vía
-const dirs8=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-{
-  const sw=[];
-  for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
-    if(W.tile[r][c]!==0&&W.tile[r][c]!==8) continue;
-    for(const [dx,dy] of dirs8){
-      const rr=r+dy, cc=c+dx;
-      if(rr>=0&&rr<W.rows&&cc>=0&&cc<W.cols&&W.tile[rr][cc]===1){ sw.push([r,c]); break; }
-    }
-  }
-  for(const [r,c] of sw) W.tile[r][c]=2;
-}
-// 5) sólidos del terreno
-for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
-  if(W.tile[r][c]===3||W.tile[r][c]===5) W.solid[r][c]=true;   // riel y agua
-  if(c>=95) W.solid[r][c]=true;                                 // variante (no se cruza)
-}
-
-// 6) edificios fijos (los dos puntos de referencia + estación como decorado)
-const B = [
-  {c:12,r:7, w:11,h:8, type:'cultural'},   // Centro Cultural (arco verde)
-  {c:79,r:48,w:4, h:4, type:'jac'},        // Salón Comunal · JAC (Cra 7 Este)
-  {c:10,r:2, w:4, h:3, type:'estacion'},   // antigua estación (sin letrero)
-];
-function stamp(b){ for(let r=b.r;r<b.r+b.h;r++)for(let c=b.c;c<b.c+b.w;c++) W.solid[r][c]=true; }
-B.forEach(stamp);
-
-// 7) manzanas generadas: conjuntos y casas donde el terreno esté libre
-function canPlace(c,r,w,h){
-  for(let rr=r;rr<r+h;rr++)for(let cc=c;cc<c+w;cc++){
-    if(rr<0||cc<0||rr>=W.rows||cc>=W.cols) return false;
-    if(W.tile[rr][cc]!==0||W.solid[rr][cc]) return false;
-  }
-  return true;
-}
-function fillZone(x0,y0,x1,y1,bw,bh,sx,sy,type){
-  for(let r=y0;r+bh<=y1;r+=sy)for(let c=x0;c+bw<=x1;c+=sx){
-    const jc=c+hash(c,r)%2;
-    if(canPlace(jc,r,bw,bh)){ const b={c:jc,r,w:bw,h:bh,type,v:hash(c,r)%4}; B.push(b); stamp(b); }
-  }
-}
-fillZone(28,3, 53,26,6,2,8,4,'row');     // Huertas (occidente): hileras naranja
-fillZone(54,4, 79,31,6,2,8,4,'row');     // Huertas (oriente)
-fillZone(82,2, 94,34,3,3,5,6,'house');   // franja nororiental
-fillZone(8,24, 25,36,7,2,9,4,'row');     // conjuntos de apartamentos (suroccidente)
-fillZone(32,29,64,39,4,3,9,6,'shop');    // comercio sobre la Calle 1
-fillZone(46,40,94,68,3,3,5,5,'house');   // Barrio Gran Colombia (casas)
-
-// 8) árboles: dispersos, sin tapar puertas
-const nearBuilding=(c,r)=>{
-  for(const [dx,dy] of dirs8){
-    const rr=r+dy, cc=c+dx;
-    if(rr>=0&&rr<W.rows&&cc>=0&&cc<W.cols&&W.solid[rr][cc]&&W.tile[rr][cc]!==3&&W.tile[rr][cc]!==5){
-      // sólido que no es riel ni agua ⇒ probablemente edificio
-      let isB=false; for(const b of B) if(cc>=b.c&&cc<b.c+b.w&&rr>=b.r&&rr<b.r+b.h){isB=true;break;}
-      if(isB) return true;
-    }
-  }
-  return false;
-};
-const trees=[];
-for(let r=0;r<W.rows;r++)for(let c=0;c<W.cols;c++){
-  if(W.solid[r][c]) continue;
-  const t=W.tile[r][c], h=hash(c,r);
-  const put = (t===0&&h%29===0) || (t===8&&h%9===0) || (t===7&&h%61===0);
-  if(put && !nearBuilding(c,r)){ trees.push({c,r}); W.solid[r][c]=true; }
-}
-// despejar el sitio del niño del parque y de la vaca
-for(const [sx,sy] of [[9.5,27.5],[20,50]]){
-  for(let i=trees.length-1;i>=0;i--){
-    const tr=trees[i];
-    if(Math.abs(tr.c+0.5-sx)<2.2 && Math.abs(tr.r+0.5-sy)<2.2){ W.solid[tr.r][tr.c]=false; trees.splice(i,1); }
-  }
-}
-
-// 9) letreros de calle: puntos a lo largo de cada vía
-const streetLabels=[];
-for(const s of STREETS){
-  let acc=0;
-  for(let i=0;i<s.p.length-1;i++){
-    const [x0,y0]=s.p[i],[x1,y1]=s.p[i+1];
-    const d=Math.hypot(x1-x0,y1-y0);
-    let ang=Math.atan2(y1-y0,x1-x0);
-    if(ang>Math.PI/2) ang-=Math.PI; if(ang<-Math.PI/2) ang+=Math.PI;
-    for(let q=11;q<d+acc;q+=22){
-      const f=(q-acc)/d; if(f<0||f>1) continue;
-      streetLabels.push({x:(x0+(x1-x0)*f)*T, y:(y0+(y1-y0)*f)*T, ang, n:s.n.toUpperCase()});
-    }
-    acc=(acc+d)%22;
-  }
-}
-// distancia de un punto a una calle (para el HUD de dirección)
-function streetAt(px,py){
-  const x=px/T, y=py/T;
-  let best=null, bd=1e9;
-  for(const s of STREETS){
-    for(let i=0;i<s.p.length-1;i++){
-      const [x0,y0]=s.p[i],[x1,y1]=s.p[i+1];
-      const dx=x1-x0, dy=y1-y0, L2=dx*dx+dy*dy;
-      let t0=((x-x0)*dx+(y-y0)*dy)/L2; t0=Math.max(0,Math.min(1,t0));
-      const d=Math.hypot(x-(x0+dx*t0), y-(y0+dy*t0));
-      if(d<bd){ bd=d; best=s; }
-    }
-  }
-  return (best&&bd<=best.w+1.4) ? best.n : null;
-}
-
-// puntos de interés del mundo
-const jacDoor = {x:81*T, y:52*T+6};
-W.pois = [
-  {x:jacDoor.x, y:jacDoor.y, r:26, act:'enter', label:'Entrar al Salón Comunal · JAC'},
-  {x:17.5*T, y:15*T+6, r:36, act:'modal', key:'cultural', label:'Centro Cultural'},
-  {x:94*T,   y:38*T,   r:30, act:'modal', key:'variante', label:'Variante de Cajicá'},
-  {x:20*T,   y:50*T,   r:24, act:'modal', key:'vaca',     label:'La vaca'},
-  {x:9.5*T,  y:27.5*T, r:22, act:'modal', key:'nino',     label:'Niño del parque'},
-];
-const npcs = [ {x:9.5*T, y:27.5*T, dir:'down', pal:['#2e7d4f','#f5cba7','#222']} ];
-const cow  = {x:20*T, y:50*T};
-const cars=[
-  {x:96.2*T, y:80,  v: 55, col:'#c62828'},
-  {x:96.2*T, y:640, v: 46, col:'#1565c0'},
-  {x:98.3*T, y:900, v:-52, col:'#f9a825'},
-  {x:98.3*T, y:300, v:-60, col:'#556b2f'},
-];
-const train = {y:-600, v:150};
-const railX = y => { const yt=y/T; return (yt<30 ? 8+(4-8)*(yt/30) : 4)*T; };
-
-/* =====================  INTERIOR DE LA JAC  ===================== */
-const I = { cols:14, rows:10 };
-I.mapw=I.cols*T; I.maph=I.rows*T;
-I.tile  = Array.from({length:I.rows},()=>Array(I.cols).fill(10));
-I.solid = Array.from({length:I.rows},()=>Array(I.cols).fill(false));
-for(let c=0;c<I.cols;c++){ I.tile[0][c]=11; I.tile[1][c]=11; I.tile[9][c]=11; }
-for(let r=0;r<I.rows;r++){ I.tile[r][0]=11; I.tile[r][13]=11; }
-I.tile[9][6]=12; I.tile[9][7]=12;
-for(let r=0;r<I.rows;r++)for(let c=0;c<I.cols;c++) I.solid[r][c]=(I.tile[r][c]===11);
-for(let c=5;c<=8;c++) I.solid[3][c]=true;
-[[3,6],[4,6],[9,6],[10,6],[1,2],[12,2],[1,7],[12,7]].forEach(p=>I.solid[p[1]][p[0]]=true);
-I.pois = [
-  {x:7*T, y:4.5*T,   r:30, act:'modal', key:'jac',       label:'Hablar con la secretaria'},
-  {x:10.5*T, y:2.8*T, r:26, act:'modal', key:'cartelera', label:'Leer la cartelera'},
-];
-
-/* =====================  DIÁLOGOS  ===================== */
-const poiContent = {
-  jac: ()=>`
-    <h2>🏛 Junta de Acción Comunal<br>Barrio Gran Colombia</h2>
-    <div class="flagline"></div>
-    <p>${CONFIG.mensaje}</p>
-    <h3>📜 Certificados de residencia</h3>
-    <p>Solicítalos llamando o escribiendo al:</p>
-    <a class="tel" href="tel:${CONFIG.telefono.replace(/\s/g,'')}">📞 ${CONFIG.telefono}</a>
-    <a class="tel wa" href="https://wa.me/${CONFIG.whatsapp}?text=Hola,%20quiero%20solicitar%20un%20certificado%20de%20residencia%20(Barrio%20Gran%20Colombia)" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
-    <a class="tel maps" href="${CONFIG.mapsJac}" target="_blank" rel="noopener">🗺 Cómo llegar (Google Maps)</a>
-    <h3>🕐 Horario de atención</h3>
-    <p>${CONFIG.horario}</p>
-    <h3>📋 Requisitos</h3>
-    <ul>${CONFIG.requisitos.map(r=>`<li>${r}</li>`).join('')}</ul>`,
-  cartelera: ()=>`
-    <h2>📌 Cartelera comunal</h2>
-    <ul>${CONFIG.cartelera.map(r=>`<li>${r}</li>`).join('')}</ul>`,
-  cultural: ()=>`
-    <h2>🎭 Centro Cultural y de Convenciones</h2>
-    <p>Uno de los centros culturales más grandes de Colombia, inaugurado en 2016. Aquí empieza el recorrido del barrio.</p>
-    <p>Para llegar a la JAC: sigue la <b>Calle 1</b> hacia el oriente y baja por la <b>Carrera 7 Este</b>, pasando la <b>Calle 1A</b>. ➜</p>
-    <a class="tel maps" href="${CONFIG.mapsCultural}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>`,
-  variante: ()=>`
-    <h2>🚗 Variante de Cajicá</h2>
-    <p>Límite oriental del barrio. ¡Mucho cuidado al cruzar! Aquí termina el territorio de la JAC Gran Colombia.</p>`,
-  vaca: ()=>`
-    <h2>🐄 Muuu.</h2>
-    <p>La vaca de los cultivos te mira fijamente. Parece que aprueba tu recorrido.</p>`,
-  nino: ()=>`
-    <h2>👦 Niño del parque</h2>
-    <p>«¿Buscas la JAC? Sigue la Calle 1 hacia el oriente hasta la Carrera 7 Este y baja pasando la Calle 1A. ¡Ahí está el salón, antes de la Calle 1 Sur!»</p>`,
-};
-
-/* =====================  ESTADO  ===================== */
-let scene = W;
-const player = { x:17.5*T, y:16.5*T, dir:'down', moving:false, anim:0 };
-const SPEED = 92;
-let visitedJac=false, talkedJac=false, fadeA=0;
-const objective=document.getElementById('objective');
-const streetBox=document.getElementById('street');
-let lastStreet='';
-
-/* =====================  ENTRADA  ===================== */
-const keys={};
-addEventListener('keydown',e=>{
-  keys[e.key.toLowerCase()]=true;
-  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
-  if(e.repeat) return;
-  if(modalOpen && (e.key==='Escape'||e.key.toLowerCase()==='e'||e.key==='Enter')) closeModal();
-  else if(!modalOpen && (e.key.toLowerCase()==='e'||e.key==='Enter'||e.key===' ')) tryInteract();
-});
-addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
-
-const joyEl=document.getElementById('joy'), stickEl=document.getElementById('stick');
-let joy={active:false,id:null,cx:0,cy:0,dx:0,dy:0};
-function joyStart(t){
-  joy.active=true; joy.id=t.identifier??'m'; joy.cx=t.clientX; joy.cy=t.clientY; joy.dx=joy.dy=0;
-  joyEl.style.display='block'; joyEl.style.left=(t.clientX-55)+'px'; joyEl.style.top=(t.clientY-55)+'px';
-  stickEl.style.left='32px'; stickEl.style.top='32px';
-}
-function joyMove(t){
-  let dx=t.clientX-joy.cx, dy=t.clientY-joy.cy;
-  const d=Math.hypot(dx,dy), m=40; if(d>m){dx*=m/d;dy*=m/d;}
-  joy.dx=dx/m; joy.dy=dy/m;
-  stickEl.style.left=(32+dx)+'px'; stickEl.style.top=(32+dy)+'px';
-}
-function joyEnd(){ joy.active=false; joy.dx=joy.dy=0; joyEl.style.display='none'; }
-addEventListener('touchstart',e=>{
-  document.body.classList.add('touch');
-  for(const t of e.changedTouches){
-    if(t.clientX>innerWidth*0.62) continue;
-    if(modalOpen) continue;
-    if(!joy.active) joyStart(t);
-  }
-},{passive:true});
-addEventListener('touchmove',e=>{ for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyMove(t); },{passive:true});
-addEventListener('touchend',e=>{ for(const t of e.changedTouches) if(joy.active&&t.identifier===joy.id) joyEnd(); },{passive:true});
-document.getElementById('btnA').addEventListener('touchstart',e=>{e.stopPropagation(); e.preventDefault(); modalOpen?closeModal():tryInteract();},{passive:false});
-document.getElementById('btnA').addEventListener('click',()=>{ modalOpen?closeModal():tryInteract(); });
-
-/* =====================  MODAL / ESCENAS  ===================== */
-const overlay=document.getElementById('overlay'), modalContent=document.getElementById('modalContent');
-let modalOpen=false;
-function openModal(key){
-  modalContent.innerHTML=poiContent[key]();
-  overlay.style.display='block'; modalOpen=true;
-  if(key==='jac'&&!talkedJac){ talkedJac=true; objective.textContent='✔ ¡Listo! Ya sabes cómo pedir tu certificado'; }
-}
-function closeModal(){ overlay.style.display='none'; modalOpen=false; }
-document.getElementById('closeBtn').onclick=closeModal;
-overlay.addEventListener('click',e=>{ if(e.target===overlay) closeModal(); });
-
-function enterJac(){
-  scene=I; player.x=7*T; player.y=8*T+4; player.dir='up'; fadeA=1;
-  if(!visitedJac){ visitedJac=true; objective.textContent='Habla con la secretaria 👩‍💼'; }
-}
-function exitJac(){
-  scene=W; player.x=jacDoor.x; player.y=jacDoor.y+6; player.dir='down'; fadeA=1;
-  if(!talkedJac) objective.textContent='Habla con la secretaria dentro de la JAC';
-}
-
-const promptEl=document.getElementById('prompt');
-let nearPoi=null;
-function tryInteract(){
-  if(!nearPoi) return;
-  if(nearPoi.act==='enter') enterJac(); else openModal(nearPoi.key);
-}
-promptEl.onclick=tryInteract;
-
-let started=false;
-document.getElementById('playBtn').onclick=()=>{ document.getElementById('intro').style.display='none'; started=true; };
-
-/* =====================  FÍSICA / CÁMARA  ===================== */
-function blocked(px,py){
-  const corners=[[px-4,py-2],[px+4,py-2],[px-4,py+3],[px+4,py+3]];
-  for(const [x,y] of corners){
-    if(x<0||y<0||x>=scene.mapw||y>=scene.maph) return true;
-    if(scene.solid[Math.floor(y/T)][Math.floor(x/T)]) return true;
-  }
-  return false;
-}
-let scale=2;
-function resize(){
-  scale=Math.max(2,Math.round(Math.min(innerWidth/400,innerHeight/280)));
-  cvs.width=Math.ceil(innerWidth/scale); cvs.height=Math.ceil(innerHeight/scale);
-}
-addEventListener('resize',resize); resize();
-
-/* =====================  DIBUJO: TILES  ===================== */
-function drawTileAt(S,c,r,x,y,now){
-  switch(S.tile[r][c]){
-    case 0: {
-      ctx.fillStyle=((c+r)%2)?'#6fbf58':'#67b551'; ctx.fillRect(x,y,T,T);
-      const h=hash(c,r);
-      if(h%6===0){ ctx.fillStyle='#579a44'; ctx.fillRect(x+3,y+5,2,3); ctx.fillRect(x+5,y+4,2,4); ctx.fillRect(x+10,y+9,2,3); }
-      if(h%19===0){ ctx.fillStyle='#e8618c'; ctx.fillRect(x+7,y+4,3,3); ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+5,1,1); }
-      if(h%23===0){ ctx.fillStyle='#f5d442'; ctx.fillRect(x+11,y+10,2,2); }
-      break; }
-    case 1:
-      ctx.fillStyle='#565660'; ctx.fillRect(x,y,T,T);
-      if(hash(c,r)%9===0){ ctx.fillStyle='#616169'; ctx.fillRect(x+5,y+7,4,2); }
-      break;
-    case 2:
-      ctx.fillStyle='#cec2a8'; ctx.fillRect(x,y,T,T);
-      ctx.strokeStyle='#b5a88c'; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,T-1,T-1); break;
-    case 3:
-      ctx.fillStyle='#7a6a4f'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#8f7c5c'; ctx.fillRect(x,y+3,T,3); ctx.fillRect(x,y+10,T,3);
-      ctx.fillStyle='#46464e'; ctx.fillRect(x+3,y,2,T); ctx.fillRect(x+11,y,2,T); break;
-    case 4:
-      ctx.fillStyle=(c+r)%2?'#dccca4':'#d2c298'; ctx.fillRect(x,y,T,T); break;
-    case 5: {
-      ctx.fillStyle='#3d7dc4'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#5b96d6';
-      const w=Math.floor(now/400+hash(c,r))%4;
-      ctx.fillRect(x+2+w,y+4,5,2); ctx.fillRect(x+8-w,y+10,5,2); break; }
-    case 7: {
-      ctx.fillStyle='#8aad4e'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='#75923c'; ctx.fillRect(x,y+3,T,2); ctx.fillRect(x,y+9,T,2);
-      if(hash(c,r)%7===0){ ctx.fillStyle='#4e8a3c'; ctx.fillRect(x+6,y+5,3,3); }
-      break; }
-    case 8: {
-      ctx.fillStyle=((c+r)%2)?'#7cc464':'#74ba5c'; ctx.fillRect(x,y,T,T);
-      const h=hash(c,r);
-      if(h%5===0){ ctx.fillStyle='#5fa04c'; ctx.fillRect(x+4,y+6,2,3); ctx.fillRect(x+9,y+10,2,3); }
-      if(h%11===0){ ctx.fillStyle='#e8618c'; ctx.fillRect(x+6,y+4,3,3); }
-      if(h%13===0){ ctx.fillStyle='#fff'; ctx.fillRect(x+11,y+8,2,2); }
-      break; }
-    case 10: {
-      ctx.fillStyle=(r%2)?'#c49a6c':'#ba9060'; ctx.fillRect(x,y,T,T);
-      ctx.fillStyle='rgba(0,0,0,.08)'; ctx.fillRect(x,y+T-1,T,1); break; }
-    case 11:
-      ctx.fillStyle=(r===0)?'#6e5138':'#e8dcc0'; ctx.fillRect(x,y,T,T);
-      if(r===1){ ctx.fillStyle='#d8c9a3'; ctx.fillRect(x,y+T-4,T,4); }
-      break;
-    case 12:
-      ctx.fillStyle='#b3261e'; ctx.fillRect(x,y,T,T);
-      ctx.strokeStyle='#8c1c15'; ctx.strokeRect(x+2.5,y+2.5,T-5,T-5);
-      ctx.fillStyle='#f5d442'; ctx.fillRect(x+6,y+6,4,4); break;
-  }
-}
-
-/* =====================  DIBUJO: EDIFICIOS  ===================== */
-const housePal=[['#e8d3ae','#a33b2e'],['#d4dbe4','#456a8c'],['#ecdcbc','#7a4a2a'],['#ddc6d4','#8c4a6e']];
-function roofBand(x,y,w,h,col,hi){
-  ctx.fillStyle=col; ctx.fillRect(x,y,w,h);
-  ctx.fillStyle=hi; ctx.fillRect(x,y,w,3);
-  ctx.fillStyle='rgba(0,0,0,.14)'; for(let i=4;i<w;i+=7) ctx.fillRect(x+i,y,1,h);
-  ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(x,y+h-2,w,2);
-}
-function label(cx,txt,y){
-  ctx.font='7px monospace'; ctx.textAlign='center';
-  const w=ctx.measureText(txt).width;
-  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(cx-w/2-3,y-8,w+6,10);
-  ctx.fillStyle='#fff'; ctx.fillText(txt,cx,y); ctx.textAlign='left';
-}
-function drawBuilding(b,cam,now){
-  const x=b.c*T-cam.x, y=b.r*T-cam.y, Wd=b.w*T, H=b.h*T;
-  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+3,y+H-2,Wd,4);
-  if(b.type==='house'){
-    const [wall,roof]=housePal[b.v%4];
-    ctx.fillStyle=wall; ctx.fillRect(x,y+12,Wd,H-12);
-    roofBand(x-2,y,Wd+4,14,roof,'rgba(255,255,255,.25)');
-    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+Wd/2-4,y+H-14,8,14);
-    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+5,y+18,8,8); ctx.fillRect(x+Wd-13,y+18,8,8);
-    ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.strokeRect(x+5.5,y+18.5,7,7); ctx.strokeRect(x+Wd-12.5,y+18.5,7,7);
-  }
-  else if(b.type==='row'){
-    ctx.fillStyle='#f0e2c4'; ctx.fillRect(x,y+14,Wd,H-14);
-    roofBand(x-2,y,Wd+4,16,'#cf5f26','#e07b3c');
-    for(let i=6;i<Wd-8;i+=16){
-      ctx.fillStyle='#6e4a2a'; ctx.fillRect(x+i,y+H-10,6,10);
-      ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+i+8,y+18,6,6);
-    }
-  }
-  else if(b.type==='shop'){
-    ctx.fillStyle='#ecdcbc'; ctx.fillRect(x,y+10,Wd,H-10);
-    ctx.fillStyle=(b.v%2)?'#b03a2e':'#2e5d8c'; ctx.fillRect(x-2,y,Wd+4,10);
-    for(let i=0;i<Wd+4;i+=8){ ctx.fillStyle=(i/8)%2?'#eee':((b.v%2)?'#b03a2e':'#2e5d8c'); ctx.fillRect(x-2+i,y+10,8,5); }
-    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+Wd/2-5,y+H-15,10,15);
-    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+5,y+20,9,9);
-  }
-  else if(b.type==='estacion'){
-    ctx.fillStyle='#b06a3a'; ctx.fillRect(x,y+10,Wd,H-10);
-    roofBand(x-2,y,Wd+4,12,'#8c3b2a','#a85440');
-    ctx.fillStyle='#3a2a18'; ctx.fillRect(x+Wd/2-4,y+H-11,8,11);
-    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+5,y+16,7,7); ctx.fillRect(x+Wd-12,y+16,7,7);
-  }
-  else if(b.type==='cultural'){
-    ctx.fillStyle='#ad5f33'; ctx.fillRect(x,y+30,Wd,H-30);
-    ctx.fillStyle='rgba(0,0,0,.12)'; for(let i=0;i<Wd;i+=8) ctx.fillRect(x+i,y+30,1,H-30);
-    ctx.fillStyle='#1f5c38'; ctx.fillRect(x+6,y+20,Wd-12,12);
-    ctx.fillStyle='#267145'; ctx.fillRect(x+22,y+10,Wd-44,12);
-    ctx.fillStyle='#2e7d4f'; ctx.fillRect(x+40,y+1,Wd-80,11);
-    ctx.fillStyle='#49a06b'; ctx.fillRect(x+6,y+20,Wd-12,3); ctx.fillRect(x+22,y+10,Wd-44,3); ctx.fillRect(x+40,y+1,Wd-80,3);
-    ctx.fillStyle='#a8d8ea';
-    for(let i=0;i<5;i++) ctx.fillRect(x+14+i*32,y+44,16,32);
-    ctx.fillStyle='#4a2c14'; ctx.fillRect(x+Wd/2-12,y+H-30,24,30);
-    ctx.fillStyle='#f5d442'; ctx.fillRect(x+Wd/2,y+H-18,2,6);
-    label(x+Wd/2,'CENTRO CULTURAL',y-4);
-  }
-  else if(b.type==='jac'){
-    ctx.fillStyle='#f2e6c8'; ctx.fillRect(x,y+16,Wd,H-16);
-    roofBand(x-3,y,Wd+6,18,'#b3261e','#d04a3e');
-    ctx.fillStyle='#a8d8ea'; ctx.fillRect(x+7,y+26,11,11); ctx.fillRect(x+Wd-18,y+26,11,11);
-    ctx.fillStyle='#5a3a20'; ctx.fillRect(x+Wd/2-8,y+H-20,16,20);
-    ctx.fillStyle='#f5d442'; ctx.fillRect(x+Wd/2+3,y+H-12,2,4);
-    ctx.fillStyle='#14203a'; ctx.fillRect(x+Wd/2-28,y+19,56,10);
-    ctx.fillStyle='#f5d442'; ctx.font='7px monospace'; ctx.textAlign='center';
-    ctx.fillText('J A C',x+Wd/2,y+27); ctx.textAlign='left';
-    const fx=x-8, fy=y+H-36;
-    ctx.fillStyle='#888'; ctx.fillRect(fx,fy,2,36);
-    const wv=Math.sin(now/300)*1.5;
-    ctx.fillStyle='#fcd116'; ctx.fillRect(fx+2,fy+wv,16,5);
-    ctx.fillStyle='#003893'; ctx.fillRect(fx+2,fy+5+wv,16,2.5);
-    ctx.fillStyle='#ce1126'; ctx.fillRect(fx+2,fy+7.5+wv,16,2.5);
-    label(x+Wd/2,'SALÓN COMUNAL',y-4);
-    if(!visitedJac){
-      const by=y-16+Math.sin(now/250)*3;
-      ctx.fillStyle='#f5d442';
-      ctx.beginPath(); ctx.moveTo(x+Wd/2-6,by); ctx.lineTo(x+Wd/2+6,by); ctx.lineTo(x+Wd/2,by+8); ctx.fill();
-    }
-  }
-}
-
-/* =====================  DIBUJO: SPRITES  ===================== */
-function drawTree(tr,cam){
-  const x=tr.c*T-cam.x, y=tr.r*T-cam.y;
-  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+12,12,4);
-  ctx.fillStyle='#6e4a2a'; ctx.fillRect(x+6,y+8,4,8);
-  ctx.fillStyle='#3f7a30'; ctx.fillRect(x+1,y-6,14,12);
-  ctx.fillStyle='#4e9440'; ctx.fillRect(x+3,y-4,10,8); ctx.fillRect(x-1,y,4,6); ctx.fillRect(x+13,y,4,6);
-  ctx.fillStyle='#5fae4e'; ctx.fillRect(x+5,y-2,6,4);
-}
-function drawCow(cam){
-  const x=cow.x-cam.x, y=cow.y-cam.y;
-  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x-7,y+2,16,4);
-  ctx.fillStyle='#f5f0e8'; ctx.fillRect(x-7,y-8,14,9);
-  ctx.fillStyle='#3a3a3a'; ctx.fillRect(x-4,y-7,4,4); ctx.fillRect(x+2,y-4,3,4);
-  ctx.fillStyle='#f5f0e8'; ctx.fillRect(x+5,y-11,6,7);
-  ctx.fillStyle='#222'; ctx.fillRect(x+8,y-9,1,2);
-  ctx.fillStyle='#e8a0b4'; ctx.fillRect(x+8,y-6,3,2);
-  ctx.fillStyle='#3a3a3a';
-  ctx.fillRect(x-6,y+1,2,3); ctx.fillRect(x-1,y+1,2,3); ctx.fillRect(x+4,y+1,2,3);
-}
-function drawCar(car,cam){
-  const x=car.x-cam.x, y=car.y-cam.y;
-  ctx.fillStyle='rgba(0,0,0,.2)'; ctx.fillRect(x-6,y-9,12,20);
-  ctx.fillStyle=car.col; ctx.fillRect(x-5,y-10,10,20);
-  ctx.fillStyle='#222'; ctx.fillRect(x-6,y-8,2,5); ctx.fillRect(x+4,y-8,2,5); ctx.fillRect(x-6,y+4,2,5); ctx.fillRect(x+4,y+4,2,5);
-  ctx.fillStyle='#bde0f0'; ctx.fillRect(x-3,car.v>0?y-7:y+3,6,4);
-}
-function drawTrain(cam){
-  const cars3=[{dy:0,col:'#2e5d3a',loco:true},{dy:-52,col:'#8c2f2f'},{dy:-104,col:'#8c2f2f'}];
-  for(const c of cars3){
-    const wy=train.y+c.dy, y=wy-cam.y;
-    if(y<-80||y>cvs.height+80) continue;
-    const x=railX(wy)-10-cam.x;
-    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x+2,y+2,20,46);
-    ctx.fillStyle=c.col; ctx.fillRect(x,y,20,46);
-    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(x,y,20,4);
-    ctx.fillStyle='#f5d442'; ctx.fillRect(x,y+(c.loco?38:8),20,4);
-    if(c.loco){ ctx.fillStyle='#222'; ctx.fillRect(x+6,y+4,8,8); }
-    else { ctx.fillStyle='#bde0f0'; ctx.fillRect(x+4,y+16,5,6); ctx.fillRect(x+11,y+16,5,6); }
-  }
-}
-function drawPerson(px,py,dir,step,pal,cam){
-  const x=Math.round(px-cam.x), y=Math.round(py-cam.y);
-  const [shirt,skin,hair]=pal;
-  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x-5,y+1,10,4);
-  ctx.fillStyle='#28405e';
-  ctx.fillRect(x-4,y-6+(step?1:0),3,7-(step?1:0)); ctx.fillRect(x+1,y-6+(step?0:1),3,7-(step?0:1));
-  ctx.fillStyle=shirt; ctx.fillRect(x-5,y-14,10,9);
-  ctx.fillStyle=skin; ctx.fillRect(x-4,y-21,8,7);
-  ctx.fillStyle=hair; ctx.fillRect(x-4,y-23,8,3);
-  if(dir==='up') ctx.fillRect(x-4,y-21,8,4);
-  if(dir!=='up'){ ctx.fillStyle='#222';
-    if(dir!=='right') ctx.fillRect(x-3,y-18,2,2);
-    if(dir!=='left')  ctx.fillRect(x+1,y-18,2,2); }
-  ctx.fillStyle=skin; ctx.fillRect(x-6,y-13+(step?2:0),2,5); ctx.fillRect(x+4,y-13+(step?0:2),2,5);
-}
-function drawInterior(cam){
-  let x=2*T-cam.x, y=1*T-cam.y;
-  ctx.fillStyle='#888'; ctx.fillRect(x+6,y-6,2,20);
-  ctx.fillStyle='#fcd116'; ctx.fillRect(x+8,y-6,14,5);
-  ctx.fillStyle='#003893'; ctx.fillRect(x+8,y-1,14,2.5);
-  ctx.fillStyle='#ce1126'; ctx.fillRect(x+8,y+1.5,14,2.5);
-  x=9*T-cam.x; y=0.6*T-cam.y;
-  ctx.fillStyle='#6e4a2a'; ctx.fillRect(x,y,3*T-6,20);
-  ctx.fillStyle='#e8dcc0'; ctx.fillRect(x+3,y+3,3*T-12,14);
-  ctx.fillStyle='#b3261e'; ctx.fillRect(x+6,y+5,8,4);
-  ctx.fillStyle='#155e2b'; ctx.fillRect(x+18,y+7,10,5);
-  ctx.fillStyle='#14203a'; ctx.fillRect(x+30,y+5,7,7);
-  x=4*T-cam.x;
-  ctx.fillStyle='#a8d8ea'; ctx.fillRect(x,0.7*T-cam.y,24,14);
-  ctx.strokeStyle='#6e5138'; ctx.strokeRect(x+.5,0.7*T-cam.y+.5,23,13);
-  x=5*T-cam.x; y=3*T-cam.y;
-  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+2,y+14,4*T,4);
-  ctx.fillStyle='#8c6239'; ctx.fillRect(x,y,4*T,14);
-  ctx.fillStyle='#a87c4f'; ctx.fillRect(x,y,4*T,4);
-  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+2,10,6);
-  ctx.fillStyle='#14203a'; ctx.fillRect(x+44,y+1,12,7);
-  for(const [cc,rr] of [[3,6],[4,6],[9,6],[10,6]]){
-    const sx=cc*T-cam.x, sy=rr*T-cam.y;
-    ctx.fillStyle='#8c6239'; ctx.fillRect(sx+3,sy+2,10,10);
-    ctx.fillStyle='#6e4a2a'; ctx.fillRect(sx+3,sy,10,4);
-  }
-  for(const [cc,rr] of [[1,2],[12,2],[1,7],[12,7]]){
-    const sx=cc*T-cam.x, sy=rr*T-cam.y;
-    ctx.fillStyle='#b3502e'; ctx.fillRect(sx+4,sy+6,8,8);
-    ctx.fillStyle='#3f7a30'; ctx.fillRect(sx+2,sy-2,12,9);
-    ctx.fillStyle='#5fae4e'; ctx.fillRect(sx+5,sy,6,5);
-  }
-}
-
-/* =====================  BUCLE  ===================== */
-let last=performance.now();
-function frame(now){
-  const dt=Math.min(.05,(now-last)/1000); last=now;
-
-  if(started&&!modalOpen){
-    let dx=0,dy=0;
-    if(keys['w']||keys['arrowup'])dy-=1; if(keys['s']||keys['arrowdown'])dy+=1;
-    if(keys['a']||keys['arrowleft'])dx-=1; if(keys['d']||keys['arrowright'])dx+=1;
-    if(joy.active&&Math.hypot(joy.dx,joy.dy)>.25){ dx=joy.dx; dy=joy.dy; }
-    const len=Math.hypot(dx,dy);
-    player.moving=len>0.01;
-    if(player.moving){
-      dx/=len; dy/=len;
-      if(Math.abs(dx)>Math.abs(dy)) player.dir=dx>0?'right':'left'; else player.dir=dy>0?'down':'up';
-      const nx=player.x+dx*SPEED*dt, ny=player.y+dy*SPEED*dt;
-      if(!blocked(nx,player.y)) player.x=nx;
-      if(!blocked(player.x,ny)) player.y=ny;
-      player.anim+=dt*2;
-    }
-    if(scene===I && I.tile[Math.floor((player.y+3)/T)]?.[Math.floor(player.x/T)]===12) exitJac();
-  }
-  if(scene===W){
-    for(const car of cars){ car.y+=car.v*dt; if(car.y>W.maph+30)car.y=-30; if(car.y<-30)car.y=W.maph+30; }
-    train.y+=train.v*dt; if(train.y>W.maph+300) train.y=-400-Math.random()*4000;
-  }
-
-  // HUD: dirección actual
-  const st = scene===I ? 'Salón Comunal · JAC' : (streetAt(player.x,player.y) || 'Barrio Gran Colombia');
-  if(st!==lastStreet){ lastStreet=st; streetBox.textContent='📍 '+st; }
-
-  nearPoi=null;
-  if(started&&!modalOpen){
-    for(const p of scene.pois) if(Math.hypot(player.x-p.x,player.y-p.y)<p.r){ nearPoi=p; break; }
-  }
-  if(nearPoi){ promptEl.innerHTML=`<b>[E]</b> ${nearPoi.label}`; promptEl.style.display='block'; }
-  else promptEl.style.display='none';
-
-  const cam={ x:Math.round(Math.min(Math.max(player.x-cvs.width/2,0),Math.max(0,scene.mapw-cvs.width))),
-              y:Math.round(Math.min(Math.max(player.y-cvs.height/2,0),Math.max(0,scene.maph-cvs.height))) };
-  if(scene.mapw<cvs.width)  cam.x=-Math.round((cvs.width-scene.mapw)/2);
-  if(scene.maph<cvs.height) cam.y=-Math.round((cvs.height-scene.maph)/2);
-
-  ctx.fillStyle= scene===W ? '#223622' : '#0c0c10';
-  ctx.fillRect(0,0,cvs.width,cvs.height);
-  const c0=Math.max(0,Math.floor(cam.x/T)), c1=Math.min(scene.cols-1,Math.ceil((cam.x+cvs.width)/T));
-  const r0=Math.max(0,Math.floor(cam.y/T)), r1=Math.min(scene.rows-1,Math.ceil((cam.y+cvs.height)/T));
-  for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++) drawTileAt(scene,c,r,c*T-cam.x,r*T-cam.y,now);
-
-  if(scene===W){
-    // nombres de calle sobre el asfalto (como en el mapa)
-    ctx.font='7px monospace'; ctx.textAlign='center';
-    for(const L of streetLabels){
-      const lx=L.x-cam.x, ly=L.y-cam.y;
-      if(lx<-80||lx>cvs.width+80||ly<-40||ly>cvs.height+40) continue;
-      ctx.save(); ctx.translate(lx,ly); ctx.rotate(L.ang);
-      ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillText(L.n,0,2);
-      ctx.restore();
-    }
-    ctx.textAlign='left';
-    // eje de la variante
-    ctx.fillStyle='#e8d44d';
-    for(let y=(-(now/18)%32);y<cvs.height+32;y+=32) ctx.fillRect(96.9*T-cam.x,y,2,14);
-    for(const car of cars) drawCar(car,cam);
-    drawTrain(cam);
-
-    const sprites=[];
-    for(const b of B)      sprites.push({y:(b.r+b.h)*T, d:()=>drawBuilding(b,cam,now)});
-    for(const tr of trees) sprites.push({y:(tr.r+1)*T,  d:()=>drawTree(tr,cam)});
-    for(const n of npcs)   sprites.push({y:n.y,         d:()=>drawPerson(n.x,n.y,n.dir,0,n.pal,cam)});
-    sprites.push({y:cow.y, d:()=>drawCow(cam)});
-    sprites.push({y:player.y, d:()=>drawPerson(player.x,player.y,player.dir,player.moving?Math.floor(player.anim*8)%2:0,['#c62828','#e8b48c','#3a2a18'],cam)});
-    sprites.sort((a,b)=>a.y-b.y);
-    for(const s of sprites) s.d();
-
-    if(started&&!visitedJac&&!modalOpen){
-      const d=Math.hypot(jacDoor.x-player.x,jacDoor.y-player.y);
-      if(d>140){
-        const a=Math.atan2(jacDoor.y-player.y,jacDoor.x-player.x);
-        const ax=player.x-cam.x+Math.cos(a)*26, ay=player.y-cam.y-10+Math.sin(a)*26;
-        ctx.save(); ctx.translate(ax,ay); ctx.rotate(a);
-        ctx.fillStyle='#f5d442'; ctx.beginPath(); ctx.moveTo(6,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.fill();
-        ctx.strokeStyle='#4a3a05'; ctx.stroke(); ctx.restore();
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
       }
-    }
-  } else {
-    drawInterior(cam);
-    const sprites=[
-      {y:3.2*T, d:()=>drawPerson(7*T,3*T-2,'down',0,['#155e2b','#e8b48c','#3a2a18'],cam)},
-      {y:player.y, d:()=>drawPerson(player.x,player.y,player.dir,player.moving?Math.floor(player.anim*8)%2:0,['#c62828','#e8b48c','#3a2a18'],cam)},
-    ];
-    sprites.sort((a,b)=>a.y-b.y);
-    for(const s of sprites) s.d();
-  }
 
-  if(fadeA>0){ fadeA=Math.max(0,fadeA-dt*2.5); ctx.fillStyle=`rgba(0,0,0,${fadeA})`; ctx.fillRect(0,0,cvs.width,cvs.height); }
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
-</script>
-</body>
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/Willow Web.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/Willow Web.data.br",
+        frameworkUrl: buildUrl + "/Willow Web.framework.js.br",
+        codeUrl: buildUrl + "/Willow Web.wasm.br",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Willow",
+        productVersion: "0.1.0",
+        showBanner: unityShowBanner,
+        // errorHandler: function(err, url, line) {
+        //    alert("error " + err + " occurred at line " + line);
+        //    // Return 'true' if you handled this error and don't want Unity
+        //    // to process it further, 'false' otherwise.
+        //    return true;
+        // },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
 </html>
